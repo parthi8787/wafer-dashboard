@@ -1,48 +1,29 @@
 # WaferTrack
 
-Dashboard for **wafer movements** and **die test results** (CP1, CP2, Class Test, Final Test), fed by ADF-landed Synapse-shaped tables.
+Hosted Next.js dashboard for **wafer movements** and **die test results** (CP1, CP2, Class, Final Test), designed to read **ADF-landed** Synapse/SQL tables.
 
-## Stack
-
-| Layer | What |
-| --- | --- |
-| ADF sink (local stand-in) | SQLite tables matching `fabops.dim_*` / `fact_*` |
-| API | `GET /wafer-track/bundle` on port `8787` |
-| UI | Vite React dashboard (`VITE_ADF_API_BASE`) |
-
-### Tables
-
-- `dim_location`
-- `dim_wafer`
-- `fact_wafer_movement`
-- `fact_die_test_result` — `test_stage` ∈ `CP1` \| `CP2` \| `CLASS` \| `FT`
-- `adf_pipeline_meta`
-
-Swap the SQLite file for Azure Synapse by pointing the API connection at Synapse; keep the same table/column names.
-
-## Run
+## Quick start (local)
 
 ```bash
 npm install
-npm run api:seed   # force reseed fabops tables
-npm run dev        # API + UI together
+npm run dev
 ```
 
-- UI: http://localhost:5173  
-- API: http://localhost:8787/wafer-track/bundle  
-- Health: http://localhost:8787/health  
+Open http://localhost:5173
 
-Optional filters: `?lotId=LOT-A2401&asOf=2026-10-12T00:00:00Z`
+Without `ADF_SQL_CONNECTION_STRING`, the app serves **sample data**.
 
-## Production / deploy
+## Live ADF
 
-See **[DEPLOY.md](./DEPLOY.md)** for full step-by-step instructions (Azure split deploy, single App Service, and Docker).
+Set server secret `ADF_SQL_CONNECTION_STRING` to a read-only SQL connection string for your ADF sink. See `docs/HOSTED_AND_LIVE_ADF.md`.
 
-Quick single-host build:
+## Hosted (no local npm)
 
-```bash
-VITE_ADF_API_BASE= npm run build
-SERVE_UI=1 ADF_API_PORT=8080 npx tsx api/server.ts
-```
+Publish from a Cloud Agent run attached to this GitHub repo. See `docs/HOSTED_AND_LIVE_ADF.md`.
 
-Replace SQLite in `api/db.ts` with a Synapse/`mssql` client when credentials are available.
+## Docs
+
+- `docs/ADF_TO_DASHBOARD_FLOW.md` — architecture flow
+- `docs/ADF_SETUP_GUIDE.md` — create ADF pipeline
+- `docs/HOSTED_AND_LIVE_ADF.md` — hosting + live data
+- `DEPLOY.md` — Azure deploy options

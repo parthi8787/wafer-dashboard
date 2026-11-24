@@ -1,12 +1,14 @@
+'use client'
+
 import { useMemo, useState } from 'react'
-import { FiltersBar } from './components/FiltersBar'
-import { LocationBoard } from './components/LocationBoard'
-import { WaferDetail } from './components/WaferDetail'
-import { WaferList } from './components/WaferList'
-import type { DashboardFilters } from './data/types'
-import { adfApiBase } from './api/adfClient'
-import { useAdfData } from './hooks/useAdfData'
 import { format } from 'date-fns'
+import { FiltersBar } from '@/components/FiltersBar'
+import { LocationBoard } from '@/components/LocationBoard'
+import { WaferDetail } from '@/components/WaferDetail'
+import { WaferList } from '@/components/WaferList'
+import type { DashboardFilters } from '@/data/types'
+import { adfApiBase } from '@/api/adfClient'
+import { useAdfData } from '@/hooks/useAdfData'
 
 const initialFilters: DashboardFilters = {
   lotId: 'all',
@@ -15,10 +17,12 @@ const initialFilters: DashboardFilters = {
   query: '',
 }
 
-export default function App() {
+export function Dashboard() {
   const { data, error, loading } = useAdfData()
   const [filters, setFilters] = useState<DashboardFilters>(initialFilters)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const isSample = Boolean(data?.sink?.includes('sample-data'))
 
   const filtered = useMemo(() => {
     if (!data) return []
@@ -68,7 +72,8 @@ export default function App() {
         {data && (
           <div className="adf-chip" title={`${data.sink} · ${adfApiBase()}`}>
             <span className="adf-dot" />
-            ADF API · <strong>{data.pipelineRunId}</strong>
+            {isSample ? 'Sample data' : 'Live ADF'} ·{' '}
+            <strong>{data.pipelineRunId}</strong>
             <span>· landed {format(new Date(data.landedAt), 'HH:mm:ss')}</span>
           </div>
         )}
@@ -79,6 +84,13 @@ export default function App() {
 
       {data && !loading && (
         <>
+          {isSample && (
+            <div className="panel panel-pad" style={{ marginBottom: 16 }}>
+              Showing <strong>sample data</strong>. Add secret{' '}
+              <code>ADF_SQL_CONNECTION_STRING</code> (Synapse / SQL read-only) to feed
+              live ADF-landed tables.
+            </div>
+          )}
           <FiltersBar
             wafers={data.wafers}
             filters={filters}

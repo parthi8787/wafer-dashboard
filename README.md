@@ -2,6 +2,8 @@
 
 Hosted Next.js dashboard for **wafer movements** and **die test results** (CP1, CP2, Class, Final Test), designed to read **ADF-landed** Synapse/SQL tables.
 
+Also includes a **Probe CSV dashboard** at `/probe` for lot/wafer/die probe extracts loaded from a configurable file path (built for 90+ day CSVs).
+
 ## Quick start (local)
 
 ```bash
@@ -9,9 +11,27 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173
+Open http://localhost:5173  
+Probe CSV view: http://localhost:5173/probe
 
-Without `ADF_SQL_CONNECTION_STRING`, the app serves **sample data**.
+Without `ADF_SQL_CONNECTION_STRING`, the movements view serves **sample data**.
+
+### Point `/probe` at your CSV
+
+Default sample: `data/probe/wafer-data.csv`
+
+```bash
+# project-relative or absolute (absolute needs PROBE_ALLOW_ABSOLUTE=1)
+PROBE_CSV_PATH=/path/to/90day-probe.csv PROBE_ALLOW_ABSOLUTE=1 npm run dev
+```
+
+Or paste a path in the UI **CSV path** field and click **Load path**. Paths must stay under `data/` unless `PROBE_ALLOW_ABSOLUTE=1`.
+
+Expected columns:
+
+```
+lotid,enddate,prgnm,curibin,wafyloc,wafxloc,wafscribe,ttime,total,tempr,begindt,curfbin,latest_by_lot_operation,lcode,prdct
+```
 
 ## Live ADF
 

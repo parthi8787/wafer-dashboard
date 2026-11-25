@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { FiltersBar } from '@/components/FiltersBar'
@@ -69,14 +70,19 @@ export function Dashboard() {
             ADF-landed dataset.
           </p>
         </div>
-        {data && (
-          <div className="adf-chip" title={`${data.sink} · ${adfApiBase()}`}>
-            <span className="adf-dot" />
-            {isSample ? 'Sample data' : 'Live ADF'} ·{' '}
-            <strong>{data.pipelineRunId}</strong>
-            <span>· landed {format(new Date(data.landedAt), 'HH:mm:ss')}</span>
-          </div>
-        )}
+        <div className="probe-nav">
+          <Link className="probe-nav-link" href="/probe">
+            Probe CSV dashboard →
+          </Link>
+          {data && (
+            <div className="adf-chip" title={`${data.sink} · ${adfApiBase()}`}>
+              <span className="adf-dot" />
+              {isSample ? 'Sample data' : 'Live ADF'} ·{' '}
+              <strong>{data.pipelineRunId}</strong>
+              <span>· landed {format(new Date(data.landedAt), 'HH:mm:ss')}</span>
+            </div>
+          )}
+        </div>
       </header>
 
       {loading && <div className="panel state">Loading ADF wafer dataset…</div>}

@@ -209,7 +209,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // SDS views must not show bin 93 in fail pareto (bin 93 is SDT-only for this flow)
+  // SDS: all fail bins as-is. SDT/SDE: bin 93 = prior-flow bin-out (still shown in pareto).
   const hideBins = paretoExcludeBins(lcode)
 
   const binParetoWeekly = [...byWeek.values()]

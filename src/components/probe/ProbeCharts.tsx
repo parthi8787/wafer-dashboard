@@ -6,6 +6,7 @@ import {
   CartesianGrid,
   Cell,
   ComposedChart,
+  LabelList,
   Legend,
   Line,
   ResponsiveContainer,
@@ -55,10 +56,10 @@ export function YieldTrendChart({
   return (
     <div className="panel panel-pad">
       <h2 className="panel-title">{title}</h2>
-      <p className="panel-sub">Yield % and wafers tested · Avg TT on good bin only</p>
+      <p className="panel-sub">Yield % (labeled) and wafers tested by period</p>
       <div className="probe-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+          <ComposedChart data={data} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="rgba(10,37,64,0.08)" strokeDasharray="3 3" />
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7f93' }} />
             <YAxis
@@ -85,7 +86,15 @@ export function YieldTrendChart({
                 fontSize: 11,
               }}
             />
-            <Tooltip contentStyle={tipStyle()} />
+            <Tooltip
+              contentStyle={tipStyle()}
+              formatter={(value, name) => {
+                if (name === 'Yield %' && typeof value === 'number') {
+                  return [`${value.toFixed(1)}%`, name]
+                }
+                return [value, name]
+              }}
+            />
             <Legend />
             <Bar
               yAxisId="wafers"
@@ -102,17 +111,23 @@ export function YieldTrendChart({
               name="Yield %"
               stroke="#1b8a5a"
               strokeWidth={2.5}
-              dot={{ r: 3 }}
-            />
-            <Line
-              yAxisId="wafers"
-              type="monotone"
-              dataKey="avgTtime"
-              name="Avg TT (good bin)"
-              stroke="#c23b3b"
-              strokeWidth={2}
-              dot={false}
-            />
+              dot={{ r: 4 }}
+            >
+              <LabelList
+                dataKey="yieldPct"
+                position="top"
+                offset={8}
+                formatter={(v) =>
+                  v == null || Number.isNaN(Number(v)) ? '' : `${Number(v).toFixed(1)}%`
+                }
+                style={{
+                  fill: '#1b8a5a',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  fontFamily: 'IBM Plex Mono, monospace',
+                }}
+              />
+            </Line>
           </ComposedChart>
         </ResponsiveContainer>
       </div>

@@ -4,6 +4,7 @@ import {
   getProbeDies,
   getProbeWafer,
 } from '@/lib/probe/csvStore'
+import { yieldPct } from '@/lib/probe/lcode'
 
 export const runtime = 'nodejs'
 
@@ -40,7 +41,12 @@ export async function GET(
       enddate: wafer.enddate,
       dieCount: wafer.dieCount,
       passCount: wafer.passCount,
-      yieldPct: wafer.dieCount ? (100 * wafer.passCount) / wafer.dieCount : 0,
+      yieldPct: yieldPct(
+        wafer.lcode,
+        wafer.passCount,
+        wafer.dieCount,
+        wafer.binCounts,
+      ),
       avgTtime: wafer.passCount ? wafer.sumGoodTtime / wafer.passCount : 0,
       minTtime: wafer.minTtime,
       maxTtime: wafer.maxTtime,

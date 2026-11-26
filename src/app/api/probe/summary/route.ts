@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureProbeLoaded, getProbeState } from '@/lib/probe/csvStore'
-import { lcodeLabel } from '@/lib/probe/lcode'
+import { lcodeLabel, yieldDenominator, yieldPct } from '@/lib/probe/lcode'
 import {
   formatMonthLabel,
   formatQuarterLabel,
@@ -18,6 +18,7 @@ type PeriodAgg = {
   label: string
   wafers: number
   dies: number
+  yieldDenom: number
   pass: number
   sumGoodTtime: number
   binCounts: Record<string, number>
@@ -29,6 +30,7 @@ function emptyPeriod(key: string, label: string): PeriodAgg {
     label,
     wafers: 0,
     dies: 0,
+    yieldDenom: 0,
     pass: 0,
     sumGoodTtime: 0,
     binCounts: {},
@@ -38,6 +40,7 @@ function emptyPeriod(key: string, label: string): PeriodAgg {
 function addWaferToPeriod(agg: PeriodAgg, w: ProbeWaferSummary) {
   agg.wafers += 1
   agg.dies += w.dieCount
+  agg.yieldDenom += yieldDenominator(w.lcode, w.dieCount, w.binCounts)
   agg.pass += w.passCount
   agg.sumGoodTtime += w.sumGoodTtime
   for (const [bin, count] of Object.entries(w.binCounts)) {
@@ -51,7 +54,7 @@ function finalizePeriod(agg: PeriodAgg) {
     label: agg.label,
     wafers: agg.wafers,
     dies: agg.dies,
-    yieldPct: agg.dies ? (100 * agg.pass) / agg.dies : 0,
+    yieldPct: agg.yieldDenom ? (100 * agg.pass) / agg.yieldDenom : 0,
     avgTtime: agg.pass ? agg.sumGoodTtime / agg.pass : 0,
   }
 }
@@ -103,6 +106,10 @@ export async function GET(req: NextRequest) {
 
   const dieCount = wafers.reduce((s, w) => s + w.dieCount, 0)
   const passDies = wafers.reduce((s, w) => s + w.passCount, 0)
+  const yieldDenomTotal = wafers.reduce(
+    (s, w) => s + yieldDenominator(w.lcode, w.dieCount, w.binCounts),
+    0,
+  )
   const sumGoodTtime = wafers.reduce((s, w) => s + w.sumGoodTtime, 0)
   const avgTtime = passDies ? sumGoodTtime / passDies : 0
 
@@ -220,7 +227,7 @@ export async function GET(req: NextRequest) {
       lots: new Set(wafers.map((w) => w.lotid)).size,
       wafers: wafers.length,
       dies: dieCount,
-      yieldPct: dieCount ? (100 * passDies) / dieCount : 0,
+      yieldPct: yieldDenomTotal ? (100 * passDies) / yieldDenomTotal : 0,
       avgTtime,
       dateMin: wafers.length
         ? wafers.reduce((m, w) => (w.endDay < m ? w.endDay : m), wafers[0].endDay)

@@ -80,7 +80,8 @@ export function ActualSummaryTable({
         </table>
       </div>
       <p className="actual-note">
-        Avg TT = mean ttime on good bin (curibin 1) only · Yield = pass die / total die
+        Avg TT = mean ttime on good bin (curibin 1) only · Yield = pass /
+        yield-eligible die (SDT excludes bin 93)
       </p>
     </div>
   )

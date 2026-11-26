@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureProbeLoaded, getProbeState } from '@/lib/probe/csvStore'
-import { lcodeLabel, paretoExcludeBins, yieldDenominator } from '@/lib/probe/lcode'
+import {
+  excludeBinFromPareto,
+  lcodeLabel,
+  paretoExcludeBins,
+  yieldDenominator,
+} from '@/lib/probe/lcode'
 import {
   formatMonthLabel,
   formatQuarterLabel,
@@ -46,6 +51,8 @@ function addWaferToPeriod(agg: PeriodAgg, w: ProbeWaferSummary) {
   agg.pass += w.passCount
   agg.sumGoodTtime += w.sumGoodTtime
   for (const [bin, count] of Object.entries(w.binCounts)) {
+    // SDT/SDE: omit bin 93 from pareto (prior-flow bin-out)
+    if (excludeBinFromPareto(w.lcode, bin)) continue
     agg.binCounts[bin] = (agg.binCounts[bin] || 0) + count
   }
   if (w.prgnm) {
@@ -164,6 +171,7 @@ export async function GET(req: NextRequest) {
     addWaferToPeriod(byQuarter.get(qk)!, w)
 
     for (const [bin, count] of Object.entries(w.binCounts)) {
+      if (excludeBinFromPareto(w.lcode, bin)) continue
       binTotals.set(bin, (binTotals.get(bin) || 0) + count)
     }
   }
@@ -209,7 +217,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // SDS: all fail bins as-is. SDT/SDE: bin 93 = prior-flow bin-out (still shown in pareto).
+  // SDS: all fail bins. SDT/SDE (+ their wafers in All): bin 93 excluded from pareto.
   const hideBins = paretoExcludeBins(lcode)
 
   const binParetoWeekly = [...byWeek.values()]

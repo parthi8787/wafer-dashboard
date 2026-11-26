@@ -900,6 +900,27 @@ a {
   white-space: nowrap;
 }
 
+.probe-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+}
+
+.probe-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--teal-soft);
+  color: var(--teal-deep);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
 .lot-multi {
   position: relative;
 }

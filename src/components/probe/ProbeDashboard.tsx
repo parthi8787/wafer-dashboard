@@ -445,12 +445,12 @@ export function ProbeDashboard() {
 
       <section className="probe-grid-2" style={{ marginTop: 14 }}>
         <BinParetoChart
-          title="Bin pareto top 10 — by week"
+          title="Bin share by week"
           periods={summary?.binParetoWeekly || []}
           overall={summary?.binsOverall || []}
         />
         <BinParetoChart
-          title="Bin pareto top 10 — by month"
+          title="Bin share by month"
           periods={summary?.binParetoMonthly || []}
           overall={summary?.binsOverall || []}
         />

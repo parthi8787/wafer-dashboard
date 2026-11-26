@@ -1,5 +1,5 @@
-import { Dashboard } from '@/components/Dashboard'
+import { BinAnalysisDashboard } from '@/components/bin-analysis/BinAnalysisDashboard'
 
 export default function HomePage() {
-  return <Dashboard />
+  return <BinAnalysisDashboard />
 }

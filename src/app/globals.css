@@ -1165,3 +1165,102 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* —— Bin analysis —— */
+.ba-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.8fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.ba-canvas {
+  min-height: 320px;
+}
+
+.ba-side {
+  min-width: 0;
+}
+
+.ba-table-wrap {
+  overflow: auto;
+  max-height: 320px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.ba-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.ba-table th,
+.ba-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.ba-table th {
+  position: sticky;
+  top: 0;
+  background: #eef3f7;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.ba-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ba-class-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.ba-corr-full {
+  grid-column: 1 / -1;
+}
+
+.ba-hw-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.ba-linkish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--teal-deep);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+}
+
+.ba-linkish:hover {
+  text-decoration: underline;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.8rem;
+}
+
+@media (max-width: 900px) {
+  .ba-map-layout,
+  .ba-class-grid,
+  .ba-hw-grid {
+    grid-template-columns: 1fr;
+  }
+}

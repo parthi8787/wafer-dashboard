@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { listCsvFiles } from '@/lib/listCsvFiles'
 import {
   ensureProbeLoaded,
   getProbeState,
@@ -13,7 +14,11 @@ export async function GET() {
   } catch {
     // return current error state
   }
-  return NextResponse.json(getProbeState())
+  const state = getProbeState()
+  return NextResponse.json({
+    ...state,
+    availableFiles: listCsvFiles('probe'),
+  })
 }
 
 export async function POST(req: NextRequest) {

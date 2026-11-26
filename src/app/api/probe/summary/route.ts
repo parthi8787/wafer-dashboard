@@ -228,7 +228,8 @@ export async function GET(req: NextRequest) {
       /** Same denominator as yield (SDS: all dies; SDT/SDE: dies − bin 93). */
       yieldDenom: p.yieldDenom,
       pass: p.pass,
-      bins: topBins(p.binCounts, 10, false, hideBins),
+      // Keep enough bins so overall top-10 can be resolved per period
+      bins: topBins(p.binCounts, 40, false, hideBins),
     }
   }
 

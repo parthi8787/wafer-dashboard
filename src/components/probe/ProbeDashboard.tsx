@@ -65,12 +65,15 @@ type Summary = {
   binsOverall: Array<{ bin: number; count: number }>
 }
 
+type CsvFileOption = { value: string; label: string; bytes: number }
+
 type Config = {
   csvPath: string | null
   loaded: boolean
   rowCount: number
   fileBytes: number
   loadedAt: string | null
+  availableFiles?: CsvFileOption[]
 }
 
 type FilterState = {
@@ -147,7 +150,14 @@ export function ProbeDashboard() {
       try {
         const cfg = await request<Config>('/api/probe/config')
         setConfig(cfg)
-        if (cfg.csvPath) setPathInput(cfg.csvPath)
+        const files = cfg.availableFiles || []
+        const match = files.find(
+          (f) =>
+            cfg.csvPath?.endsWith(`/${f.label}`) ||
+            cfg.csvPath?.endsWith(f.value) ||
+            cfg.csvPath?.includes(`/${f.value}`),
+        )
+        setPathInput(match?.value || files[0]?.value || DEFAULT_PATH)
         await loadSummary(EMPTY_FILTERS)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
@@ -231,16 +241,27 @@ export function ProbeDashboard() {
 
       <section className="panel panel-pad probe-path-bar">
         <label className="probe-field">
-          <span>CSV path (under data/)</span>
-          <input
+          <span>Probe CSV file</span>
+          <select
             value={pathInput}
             onChange={(e) => setPathInput(e.target.value)}
-            placeholder="data/probe/wafer-data.csv"
-            spellCheck={false}
-          />
+            disabled={busy || !(config?.availableFiles?.length)}
+          >
+            {(config?.availableFiles?.length
+              ? config.availableFiles
+              : [{ value: DEFAULT_PATH, label: 'wafer-data.csv', bytes: 0 }]
+            ).map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+                {f.bytes
+                  ? ` (${(f.bytes / (1024 * 1024)).toFixed(1)} MB)`
+                  : ''}
+              </option>
+            ))}
+          </select>
         </label>
         <button type="button" className="btn-primary" onClick={onLoadPath} disabled={busy}>
-          Load path
+          Load
         </button>
         <button type="button" className="btn-secondary" onClick={onReload} disabled={busy}>
           Reload

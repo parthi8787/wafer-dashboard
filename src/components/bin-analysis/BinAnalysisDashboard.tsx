@@ -123,12 +123,15 @@ type Summary = {
   }
 }
 
+type CsvFileOption = { value: string; label: string; bytes: number }
+
 type Config = {
   csvPath: string | null
   loaded: boolean
   rowCount: number
   fileBytes: number
   loadedAt: string | null
+  availableFiles?: CsvFileOption[]
 }
 
 type Filters = {
@@ -208,12 +211,14 @@ export function BinAnalysisDashboard() {
       try {
         const cfg = await request<Config>('/api/bin-analysis/config')
         setConfig(cfg)
-        if (cfg.csvPath) {
-          const rel = cfg.csvPath.includes('data/bin-analysis')
-            ? DEFAULT_PATH
-            : cfg.csvPath
-          setPathInput(rel)
-        }
+        const files = cfg.availableFiles || []
+        const match = files.find(
+          (f) =>
+            cfg.csvPath?.endsWith(`/${f.label}`) ||
+            cfg.csvPath?.endsWith(f.value) ||
+            cfg.csvPath?.includes(`/${f.value}`),
+        )
+        setPathInput(match?.value || files[0]?.value || DEFAULT_PATH)
         await loadSummary(EMPTY)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
@@ -282,13 +287,22 @@ export function BinAnalysisDashboard() {
 
       <section className="panel panel-pad probe-path-bar">
         <label className="probe-field">
-          <span>Class / GDR CSV path (under data/)</span>
-          <input
+          <span>Class / GDR CSV file</span>
+          <select
             value={pathInput}
             onChange={(e) => setPathInput(e.target.value)}
-            placeholder={DEFAULT_PATH}
-            spellCheck={false}
-          />
+            disabled={busy || !(config?.availableFiles?.length)}
+          >
+            {(config?.availableFiles?.length
+              ? config.availableFiles
+              : [{ value: DEFAULT_PATH, label: 'class-gdr-dies.csv', bytes: 0 }]
+            ).map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+                {f.bytes ? ` (${(f.bytes / 1024).toFixed(0)} KB)` : ''}
+              </option>
+            ))}
+          </select>
         </label>
         <button type="button" className="btn-primary" disabled={busy} onClick={onLoadPath}>
           Load

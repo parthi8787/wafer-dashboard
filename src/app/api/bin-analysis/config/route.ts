@@ -3,6 +3,7 @@ import {
   DEFAULT_BIN_ANALYSIS_CSV,
   getBinAnalysisStore,
 } from '@/lib/bin-analysis/csvStore'
+import { listCsvFiles } from '@/lib/listCsvFiles'
 
 export const runtime = 'nodejs'
 
@@ -17,6 +18,7 @@ export async function GET() {
     fileBytes: snap.fileBytes,
     loadedAt: snap.loadedAt,
     error: snap.error,
+    availableFiles: listCsvFiles('bin-analysis'),
   })
 }
 

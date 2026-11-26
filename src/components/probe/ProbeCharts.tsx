@@ -227,7 +227,7 @@ export function BinParetoChart({
   overall: Array<{ bin: number; count: number }>
   title: string
 }) {
-  const topBinIds = overall.slice(0, 5).map((b) => b.bin)
+  const topBinIds = overall.slice(0, 10).map((b) => b.bin)
   const binColor = (id: number, i: number) =>
     id === 1 ? '#1b8a5a' : BIN_PALETTE[i % BIN_PALETTE.length]
 
@@ -237,17 +237,13 @@ export function BinParetoChart({
         ? p.yieldDenom
         : p.bins.reduce((s, b) => s + b.count, 0) || 1
     const row: Record<string, string | number> = { label: p.label }
-    let shown = 0
     topBinIds.forEach((id) => {
       const count =
         id === 1 && p.pass != null
           ? p.pass
           : p.bins.find((b) => b.bin === id)?.count || 0
-      const pct = (100 * count) / denom
-      row[`bin_${id}`] = pct
-      shown += pct
+      row[`bin_${id}`] = (100 * count) / denom
     })
-    row.other = Math.max(0, 100 - shown)
     return row
   })
 
@@ -264,8 +260,8 @@ export function BinParetoChart({
     <div className="panel panel-pad">
       <h2 className="panel-title">{title}</h2>
       <p className="panel-sub">
-        % of yield-eligible dies per period (Bin 1 matches yield) · bin 93 excluded · tooltip
-        sorted high → low
+        Top 10 bins as % of yield-eligible dies (Bin 1 matches yield) · bin 93 excluded ·
+        tooltip sorted high → low
       </p>
       <div className="probe-chart">
         <ResponsiveContainer width="100%" height="100%">
@@ -292,7 +288,6 @@ export function BinParetoChart({
                 fill={binColor(id, i)}
               />
             ))}
-            <Bar dataKey="other" name="Other" stackId="a" fill="#cbd5e1" />
           </BarChart>
         </ResponsiveContainer>
       </div>

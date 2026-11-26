@@ -185,7 +185,7 @@ export function BinParetoChart({
     <div className="panel panel-pad">
       <h2 className="panel-title">{title}</h2>
       <p className="panel-sub">
-        Top 10 fail bins (excludes pass bin 1; SDT/SDE also exclude bin 93) · die share
+        Top 10 fail bins (excludes pass bin 1 and bin 93) · die share
       </p>
       <div className="probe-chart">
         <ResponsiveContainer width="100%" height="100%">

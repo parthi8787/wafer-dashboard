@@ -12,8 +12,8 @@ export function SampleBanner({
   const body =
     detail ||
     (kind === 'probe'
-      ? 'Replace data/probe/wafer-data.csv (or Load path) with your 90-day extract before production use.'
-      : 'Replace data/bin-analysis/class-gdr-dies.csv with your class + GDR die extract (see schema below).')
+      ? 'Drop your probe CSV into data/probe/ then pick it from the file dropdown and Load.'
+      : 'Drop your class/GDR CSV into data/bin-analysis/ then pick it from the file dropdown and Load.')
 
   return (
     <div className="sample-banner" role="status">

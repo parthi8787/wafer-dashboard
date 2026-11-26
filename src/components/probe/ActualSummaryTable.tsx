@@ -93,8 +93,8 @@ export function ActualSummaryTable({
         </table>
       </div>
       <p className="actual-note">
-        Avg TT = mean ttime on good bin (curibin 1) only · Yield = pass ÷ yield-eligible
-        dies · SDT/SDE exclude bin 93 (prior-flow bin-out); SDS counts all dies
+        Avg TT = mean ttime on good bin (curibin 1) only · Yield: SDS = pass ÷ all dies;
+        SDT/SDE = pass ÷ (dies − bin 93) · Pareto: bin 93 hidden on SDS/SDT/SDE
         {showTp ? ' · TP name = test program (prgnm)' : ''}
       </p>
     </div>

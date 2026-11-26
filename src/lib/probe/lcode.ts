@@ -7,18 +7,22 @@ export const LCODE_LABELS: Record<string, string> = {
 
 /**
  * Probe cascade:
- *   SDS (first)  → fails are real bins as tested.
+ *   SDS (first)  → real fail bins as tested. Bin 93 is not a meaningful SDS fail
+ *                  mode (if present in extract, hide from pareto only).
  *   SDT (next)   → SDS fails are binned out as soft-bin 93.
  *   SDE (last)   → SDS+SDT fails are binned out as soft-bin 93.
  *
- * For SDT and SDE, bin 93 is prior-flow bin-out — exclude it from both
- * yield denominator and fail-pareto counts. SDS keeps every fail bin.
+ * Yield: SDT/SDE exclude bin 93 from denominator; SDS uses all dies.
+ * Pareto: bin 93 is excluded on SDS, SDT, and SDE.
  */
 export const YIELD_EXCLUDE_BINS = new Set(['93'])
 export const YIELD_EXCLUDE_BIN93_LCODES = new Set([
   '132150', // SDT
   '252768', // SDE
 ])
+
+/** Always hide these soft-bins from fail-pareto charts (all LCodes). */
+export const PARETO_EXCLUDE_BINS = new Set(['93'])
 
 export const SDS_LCODE = '132110'
 export const SDT_LCODE = '132150'
@@ -53,13 +57,11 @@ export function yieldPct(
   return denom ? (100 * passCount) / denom : 0
 }
 
-/** True when this soft-bin must be omitted from SDT/SDE fail pareto. */
-export function excludeBinFromPareto(lcode: string, bin: string): boolean {
-  return YIELD_EXCLUDE_BIN93_LCODES.has(lcode) && YIELD_EXCLUDE_BINS.has(bin)
+/** Bin 93 is omitted from fail pareto for every LCode (incl. SDS). */
+export function excludeBinFromPareto(_lcode: string, bin: string): boolean {
+  return PARETO_EXCLUDE_BINS.has(bin)
 }
 
-/** Filter-level exclude set when the active LCode is SDT or SDE. */
-export function paretoExcludeBins(lcodeFilter: string): Set<string> {
-  if (YIELD_EXCLUDE_BIN93_LCODES.has(lcodeFilter)) return new Set(YIELD_EXCLUDE_BINS)
-  return new Set()
+export function paretoExcludeBins(_lcodeFilter: string): Set<string> {
+  return new Set(PARETO_EXCLUDE_BINS)
 }

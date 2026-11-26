@@ -9,9 +9,10 @@ Next.js app with two views:
 
 ## Probe flow rules (SDS → SDT → SDE)
 
-- **SDS** (first): all fail bins as tested. Yield = pass ÷ all dies.
+- **SDS** (first): Yield = pass ÷ all dies. Pareto **hides bin 93** (not a SDS fail mode).
 - **SDT**: SDS fails appear as soft-bin **93**. Yield & pareto **exclude bin 93**.
 - **SDE**: SDS+SDT fails appear as soft-bin **93**. Yield & pareto **exclude bin 93**.
+- **Pareto**: bin **93** is never shown (SDS / SDT / SDE).
 - **Avg TT**: mean `ttime` on good bin (`curibin == 1`) only.
 
 ## Quick start

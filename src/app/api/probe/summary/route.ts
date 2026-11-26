@@ -217,7 +217,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // SDS: all fail bins. SDT/SDE (+ their wafers in All): bin 93 excluded from pareto.
+  // Bin 93 hidden from pareto on SDS/SDT/SDE (and All). Yield still SDS=all, SDT/SDE−93.
   const hideBins = paretoExcludeBins(lcode)
 
   const binParetoWeekly = [...byWeek.values()]

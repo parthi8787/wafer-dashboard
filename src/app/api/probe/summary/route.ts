@@ -1,7 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureProbeLoaded, getProbeState } from '@/lib/probe/csvStore'
+import { lcodeLabel } from '@/lib/probe/lcode'
+import {
+  formatMonthLabel,
+  formatQuarterLabel,
+  formatWeekLabel,
+  monthKeyFromDay,
+  quarterKeyFromDay,
+  weekKeyFromDay,
+} from '@/lib/probe/periods'
+import type { ProbeWaferSummary } from '@/lib/probe/types'
 
 export const runtime = 'nodejs'
+
+type PeriodAgg = {
+  key: string
+  label: string
+  wafers: number
+  dies: number
+  pass: number
+  sumGoodTtime: number
+  binCounts: Record<string, number>
+}
+
+function emptyPeriod(key: string, label: string): PeriodAgg {
+  return {
+    key,
+    label,
+    wafers: 0,
+    dies: 0,
+    pass: 0,
+    sumGoodTtime: 0,
+    binCounts: {},
+  }
+}
+
+function addWaferToPeriod(agg: PeriodAgg, w: ProbeWaferSummary) {
+  agg.wafers += 1
+  agg.dies += w.dieCount
+  agg.pass += w.passCount
+  agg.sumGoodTtime += w.sumGoodTtime
+  for (const [bin, count] of Object.entries(w.binCounts)) {
+    agg.binCounts[bin] = (agg.binCounts[bin] || 0) + count
+  }
+}
+
+function finalizePeriod(agg: PeriodAgg) {
+  return {
+    key: agg.key,
+    label: agg.label,
+    wafers: agg.wafers,
+    dies: agg.dies,
+    yieldPct: agg.dies ? (100 * agg.pass) / agg.dies : 0,
+    avgTtime: agg.pass ? agg.sumGoodTtime / agg.pass : 0,
+  }
+}
+
+function topBins(binCounts: Record<string, number>, limit = 10, excludePass = true) {
+  return Object.entries(binCounts)
+    .filter(([bin]) => !(excludePass && bin === '1'))
+    .map(([bin, count]) => ({ bin: Number(bin), count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -42,112 +103,106 @@ export async function GET(req: NextRequest) {
 
   const dieCount = wafers.reduce((s, w) => s + w.dieCount, 0)
   const passDies = wafers.reduce((s, w) => s + w.passCount, 0)
-  const sumTtime = wafers.reduce((s, w) => s + w.sumTtime, 0)
-  const avgTtime = dieCount ? sumTtime / dieCount : 0
+  const sumGoodTtime = wafers.reduce((s, w) => s + w.sumGoodTtime, 0)
+  const avgTtime = passDies ? sumGoodTtime / passDies : 0
 
-  const byDay = new Map<
-    string,
-    { day: string; wafers: number; dies: number; pass: number; sumTtime: number }
-  >()
+  const byWeek = new Map<string, PeriodAgg>()
+  const byMonth = new Map<string, PeriodAgg>()
+  const byQuarter = new Map<string, PeriodAgg>()
   const binTotals = new Map<string, number>()
-  const lotMap = new Map<
-    string,
-    {
-      lotid: string
-      prdct: string
-      prgnm: string
-      lcode: string
-      wafers: number
-      dies: number
-      pass: number
-      sumTtime: number
-      firstBegin: string
-      lastEnd: string
-    }
-  >()
+  const lcodeSet = new Set<string>()
 
   for (const w of wafers) {
-    const day = byDay.get(w.endDay) || {
-      day: w.endDay,
-      wafers: 0,
-      dies: 0,
-      pass: 0,
-      sumTtime: 0,
-    }
-    day.wafers += 1
-    day.dies += w.dieCount
-    day.pass += w.passCount
-    day.sumTtime += w.sumTtime
-    byDay.set(w.endDay, day)
+    lcodeSet.add(w.lcode)
+
+    const wk = weekKeyFromDay(w.endDay)
+    const mk = monthKeyFromDay(w.endDay)
+    const qk = quarterKeyFromDay(w.endDay)
+
+    if (!byWeek.has(wk)) byWeek.set(wk, emptyPeriod(wk, formatWeekLabel(wk)))
+    if (!byMonth.has(mk)) byMonth.set(mk, emptyPeriod(mk, formatMonthLabel(mk)))
+    if (!byQuarter.has(qk)) byQuarter.set(qk, emptyPeriod(qk, formatQuarterLabel(qk)))
+
+    addWaferToPeriod(byWeek.get(wk)!, w)
+    addWaferToPeriod(byMonth.get(mk)!, w)
+    addWaferToPeriod(byQuarter.get(qk)!, w)
 
     for (const [bin, count] of Object.entries(w.binCounts)) {
       binTotals.set(bin, (binTotals.get(bin) || 0) + count)
     }
-
-    const lot = lotMap.get(w.lotid) || {
-      lotid: w.lotid,
-      prdct: w.prdct,
-      prgnm: w.prgnm,
-      lcode: w.lcode,
-      wafers: 0,
-      dies: 0,
-      pass: 0,
-      sumTtime: 0,
-      firstBegin: w.begindt,
-      lastEnd: w.enddate,
-    }
-    lot.wafers += 1
-    lot.dies += w.dieCount
-    lot.pass += w.passCount
-    lot.sumTtime += w.sumTtime
-    if (w.begindt < lot.firstBegin) lot.firstBegin = w.begindt
-    if (w.enddate > lot.lastEnd) lot.lastEnd = w.enddate
-    lotMap.set(w.lotid, lot)
   }
 
-  const daily = [...byDay.values()]
-    .sort((a, b) => a.day.localeCompare(b.day))
-    .map((d) => ({
-      day: d.day,
-      wafers: d.wafers,
-      dies: d.dies,
-      yieldPct: d.dies ? (100 * d.pass) / d.dies : 0,
-      avgTtime: d.dies ? d.sumTtime / d.dies : 0,
+  const weekly = [...byWeek.values()]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map(finalizePeriod)
+
+  const monthly = [...byMonth.values()]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map(finalizePeriod)
+
+  const quarterly = [...byQuarter.values()]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map(finalizePeriod)
+
+  // Monthly view columns with quarter totals after quarter-end months,
+  // and the in-progress quarter after the latest incomplete month.
+  const actualColumns: Array<{
+    key: string
+    label: string
+    kind: 'month' | 'quarter'
+    wafers: number
+    yieldPct: number
+    avgTtime: number
+  }> = []
+  for (const m of monthly) {
+    actualColumns.push({ ...m, kind: 'month' })
+    const monthNum = Number(m.key.slice(5, 7))
+    if (monthNum % 3 === 0) {
+      const q = quarterly.find((x) => x.key === `${m.key.slice(0, 4)}-Q${monthNum / 3}`)
+      if (q) actualColumns.push({ ...q, kind: 'quarter' })
+    }
+  }
+  if (monthly.length) {
+    const last = monthly[monthly.length - 1]
+    const monthNum = Number(last.key.slice(5, 7))
+    if (monthNum % 3 !== 0) {
+      const qKey = `${last.key.slice(0, 4)}-Q${Math.ceil(monthNum / 3)}`
+      const q = quarterly.find((x) => x.key === qKey)
+      if (q && !actualColumns.some((c) => c.key === q.key)) {
+        actualColumns.push({ ...q, kind: 'quarter' })
+      }
+    }
+  }
+
+  const binParetoWeekly = [...byWeek.values()]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map((p) => ({
+      key: p.key,
+      label: p.label,
+      bins: topBins(p.binCounts, 10, true),
     }))
 
-  const bins = [...binTotals.entries()]
-    .map(([bin, count]) => ({ bin: Number(bin), count }))
-    .sort((a, b) => b.count - a.count)
-
-  const lots = [...lotMap.values()]
-    .map((l) => ({
-      ...l,
-      yieldPct: l.dies ? (100 * l.pass) / l.dies : 0,
-      avgTtime: l.dies ? l.sumTtime / l.dies : 0,
+  const binParetoMonthly = [...byMonth.values()]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map((p) => ({
+      key: p.key,
+      label: p.label,
+      bins: topBins(p.binCounts, 10, true),
     }))
-    .sort((a, b) => b.lastEnd.localeCompare(a.lastEnd))
 
-  const waferRows = wafers
-    .map((w) => ({
-      id: w.id,
-      lotid: w.lotid,
-      wafscribe: w.wafscribe,
-      prdct: w.prdct,
-      prgnm: w.prgnm,
-      lcode: w.lcode,
-      begindt: w.begindt,
-      enddate: w.enddate,
-      endDay: w.endDay,
-      dieCount: w.dieCount,
-      passCount: w.passCount,
-      yieldPct: w.dieCount ? (100 * w.passCount) / w.dieCount : 0,
-      avgTtime: w.dieCount ? w.sumTtime / w.dieCount : 0,
-      minTtime: w.minTtime,
-      maxTtime: w.maxTtime,
-      tempr: w.tempr,
-      total: w.total,
-    }))
-    .sort((a, b) => b.enddate.localeCompare(a.enddate))
+  const binsOverall = topBins(
+    Object.fromEntries(binTotals.entries()),
+    10,
+    true,
+  )
+
+  const filters = {
+    ...state.filters,
+    lcodes: [...lcodeSet].sort(),
+    lcodeOptions: [...lcodeSet]
+      .sort()
+      .map((code) => ({ value: code, label: lcodeLabel(code) })),
+  }
 
   return NextResponse.json({
     meta: {
@@ -160,9 +215,9 @@ export async function GET(req: NextRequest) {
       filteredWafers: wafers.length,
       filteredDies: dieCount,
     },
-    filters: state.filters,
+    filters,
     kpis: {
-      lots: lotMap.size,
+      lots: new Set(wafers.map((w) => w.lotid)).size,
       wafers: wafers.length,
       dies: dieCount,
       yieldPct: dieCount ? (100 * passDies) / dieCount : 0,
@@ -174,9 +229,12 @@ export async function GET(req: NextRequest) {
         ? wafers.reduce((m, w) => (w.endDay > m ? w.endDay : m), wafers[0].endDay)
         : state.dateMax,
     },
-    daily,
-    bins,
-    lots,
-    wafers: waferRows,
+    weekly,
+    monthly,
+    quarterly,
+    actualColumns,
+    binParetoWeekly,
+    binParetoMonthly,
+    binsOverall,
   })
 }

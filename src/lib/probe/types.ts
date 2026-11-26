@@ -20,7 +20,10 @@ export interface ProbeWaferSummary {
   total: number
   dieCount: number
   passCount: number
+  /** Sum of ttime across all dies (legacy / map use). */
   sumTtime: number
+  /** Sum of ttime for good bin only (curibin == 1). */
+  sumGoodTtime: number
   minTtime: number
   maxTtime: number
   binCounts: Record<string, number>

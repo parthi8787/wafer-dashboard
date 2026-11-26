@@ -131,6 +131,7 @@ function emptyWafer(id: string, row: Record<string, string>): ProbeWaferSummary 
     dieCount: 0,
     passCount: 0,
     sumTtime: 0,
+    sumGoodTtime: 0,
     minTtime: Number.POSITIVE_INFINITY,
     maxTtime: Number.NEGATIVE_INFINITY,
     binCounts: {},
@@ -223,7 +224,10 @@ function parseCsvIntoState(csvPath: string) {
           if (ttime < wafer.minTtime) wafer.minTtime = ttime
           if (ttime > wafer.maxTtime) wafer.maxTtime = ttime
         }
-        if (PASS_BINS.has(curibin)) wafer.passCount += 1
+        if (PASS_BINS.has(curibin)) {
+          wafer.passCount += 1
+          if (Number.isFinite(ttime)) wafer.sumGoodTtime += ttime
+        }
         const binKey = String(Number.isFinite(curibin) ? curibin : row.curibin)
         wafer.binCounts[binKey] = (wafer.binCounts[binKey] || 0) + 1
 

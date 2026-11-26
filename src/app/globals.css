@@ -1264,3 +1264,62 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* —— App nav + sample banner —— */
+.app-nav {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line);
+}
+
+.app-nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.app-nav-link:hover {
+  color: var(--ink);
+  background: rgba(15, 138, 125, 0.08);
+}
+
+.app-nav-link.active {
+  background: var(--teal);
+  color: #fff;
+}
+
+.sample-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(196, 122, 18, 0.35);
+  background: var(--amber-soft);
+  color: var(--hold);
+  font-size: 0.86rem;
+}
+
+.sample-banner strong {
+  color: var(--ink);
+}
+
+.actual-tp {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-family: var(--mono);
+}

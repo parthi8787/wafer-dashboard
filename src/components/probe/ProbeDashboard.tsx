@@ -1,7 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AppNav } from '@/components/AppNav'
+import { SampleBanner } from '@/components/SampleBanner'
 import { ActualSummaryTable } from '@/components/probe/ActualSummaryTable'
 import { LotMultiSelect } from '@/components/probe/LotMultiSelect'
 import { BinParetoChart, YieldTrendChart } from '@/components/probe/ProbeCharts'
@@ -217,20 +218,18 @@ export function ProbeDashboard() {
             bin 93 (prior-flow bin-out) · Avg TT on good bin only
           </p>
         </div>
-        <div className="probe-nav">
-          <Link className="probe-nav-link" href="/">
-            ← Bin analysis
-          </Link>
-        </div>
+        <AppNav />
       </header>
+
+      <SampleBanner kind="probe" />
 
       <section className="panel panel-pad probe-path-bar">
         <label className="probe-field">
-          <span>CSV path</span>
+          <span>CSV path (under data/)</span>
           <input
             value={pathInput}
             onChange={(e) => setPathInput(e.target.value)}
-            placeholder="data/probe/wafer-data.csv or absolute path"
+            placeholder="data/probe/wafer-data.csv"
             spellCheck={false}
           />
         </label>
@@ -243,7 +242,7 @@ export function ProbeDashboard() {
       </section>
       <div className="probe-meta mono">
         {config?.loaded
-          ? `Loaded ${fmt(config.rowCount)} rows · ${(config.fileBytes / (1024 * 1024)).toFixed(1)} MB · ${config.csvPath}`
+          ? `Loaded ${fmt(config.rowCount)} rows · ${(config.fileBytes / (1024 * 1024)).toFixed(1)} MB`
           : 'Default sample: data/probe/wafer-data.csv'}
         {config?.loadedAt ? ` · refreshed ${new Date(config.loadedAt).toLocaleString()}` : ''}
         {loading ? ' · updating…' : ''}

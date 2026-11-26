@@ -1,7 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
+import { AppNav } from '@/components/AppNav'
+import { SampleBanner } from '@/components/SampleBanner'
 import { ClassGdrPanel } from '@/components/bin-analysis/ClassGdrPanel'
 import { CommonalityMap } from '@/components/bin-analysis/CommonalityMap'
 import { HardwarePanel } from '@/components/bin-analysis/HardwarePanel'
@@ -274,20 +275,19 @@ export function BinAnalysisDashboard() {
             analysis
           </p>
         </div>
-        <div className="probe-nav">
-          <Link className="probe-nav-link" href="/probe">
-            Probe CSV dashboard →
-          </Link>
-        </div>
+        <AppNav />
       </header>
+
+      <SampleBanner kind="bin-analysis" />
 
       <section className="panel panel-pad probe-path-bar">
         <label className="probe-field">
-          <span>Class / GDR CSV path</span>
+          <span>Class / GDR CSV path (under data/)</span>
           <input
             value={pathInput}
             onChange={(e) => setPathInput(e.target.value)}
             placeholder={DEFAULT_PATH}
+            spellCheck={false}
           />
         </label>
         <button type="button" className="btn-primary" disabled={busy} onClick={onLoadPath}>

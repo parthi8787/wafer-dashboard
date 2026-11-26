@@ -1,49 +1,58 @@
-# WaferTrack
+# Wafer Dashboard
 
-Hosted Next.js dashboard for **wafer movements** and **die test results** (CP1, CP2, Class, Final Test), designed to read **ADF-landed** Synapse/SQL tables.
+Next.js app with two views:
 
-Also includes a **Probe CSV dashboard** at `/probe` for lot/wafer/die probe extracts loaded from a configurable file path (built for 90+ day CSVs).
+| Route | Purpose |
+|-------|---------|
+| `/` | **Bin analysis** — wafer-map commonality, Class → GDR correlation, Class hardware |
+| `/probe` | **Probe Actuals** — weekly/monthly yield, Avg TT (good bin), top-10 bin pareto |
 
-## Quick start (local)
+## Probe flow rules (SDS → SDT → SDE)
+
+- **SDS** (first): all fail bins as tested. Yield = pass ÷ all dies.
+- **SDT**: SDS fails appear as soft-bin **93**. Yield & pareto **exclude bin 93**.
+- **SDE**: SDS+SDT fails appear as soft-bin **93**. Yield & pareto **exclude bin 93**.
+- **Avg TT**: mean `ttime` on good bin (`curibin == 1`) only.
+
+## Quick start
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173  
-Probe CSV view: http://localhost:5173/probe
+Open http://localhost:5173
 
-Without `ADF_SQL_CONNECTION_STRING`, the movements view serves **sample data**.
+### Data files (under `data/`)
 
-### Point `/probe` at your CSV
+| Path | Used by |
+|------|---------|
+| `data/probe/wafer-data.csv` | `/probe` |
+| `data/bin-analysis/class-gdr-dies.csv` | `/` Bin analysis |
 
-Default sample: `data/probe/wafer-data.csv`
+In the UI, paste a path under `data/` and click **Load**. Absolute paths outside `data/` need `PROBE_ALLOW_ABSOLUTE=1` (or `BIN_ANALYSIS_ALLOW_ABSOLUTE=1`) and are disabled in production by default.
 
-```bash
-# project-relative or absolute (absolute needs PROBE_ALLOW_ABSOLUTE=1)
-PROBE_CSV_PATH=/path/to/90day-probe.csv PROBE_ALLOW_ABSOLUTE=1 npm run dev
-```
-
-Or paste a path in the UI **CSV path** field and click **Load path**. Paths must stay under `data/` unless `PROBE_ALLOW_ABSOLUTE=1`.
-
-Expected columns:
+#### Probe CSV columns
 
 ```
 lotid,enddate,prgnm,curibin,wafyloc,wafxloc,wafscribe,ttime,total,tempr,begindt,curfbin,latest_by_lot_operation,lcode,prdct
 ```
 
-## Live ADF
+#### Class / GDR CSV columns
 
-Set server secret `ADF_SQL_CONNECTION_STRING` to a read-only SQL connection string for your ADF sink. See `docs/HOSTED_AND_LIVE_ADF.md`.
+See `data/bin-analysis/README.md`.
 
-## Hosted (no local npm)
+## Env (optional)
 
-Publish from a Cloud Agent run attached to this GitHub repo. See `docs/HOSTED_AND_LIVE_ADF.md`.
+| Variable | Meaning |
+|----------|---------|
+| `PROBE_CSV_PATH` | Default probe CSV |
+| `BIN_ANALYSIS_CSV_PATH` | Default class/GDR CSV |
+| `PROBE_DATA_ROOT` | Data root (default `data`) |
+| `PROBE_ALLOW_ABSOLUTE` | Allow CSV paths outside data root |
+| `ADF_SQL_CONNECTION_STRING` | Legacy ADF bundle (unused by home/bin analysis) |
 
 ## Docs
 
-- `docs/ADF_TO_DASHBOARD_FLOW.md` — architecture flow
-- `docs/ADF_SETUP_GUIDE.md` — create ADF pipeline
-- `docs/HOSTED_AND_LIVE_ADF.md` — hosting + live data
-- `DEPLOY.md` — Azure deploy options
+- `data/bin-analysis/README.md` — Class/GDR schema
+- `docs/` — ADF / hosting notes (legacy movements pipeline)

@@ -9,13 +9,34 @@ function projectRoot() {
   return process.cwd()
 }
 
+function getDataRoot() {
+  const rootName = process.env.PROBE_DATA_ROOT || 'data'
+  return path.resolve(/*turbopackIgnore: true*/ projectRoot(), rootName)
+}
+
+/** Paths must stay under data/ unless absolute paths are enabled (dev only by default). */
 function resolveCsvPath(input: string) {
   const trimmed = input.trim()
   if (!trimmed) throw new Error('CSV path is empty')
-  if (path.isAbsolute(trimmed)) {
-    return path.resolve(/*turbopackIgnore: true*/ trimmed)
+
+  const dataRoot = getDataRoot()
+  const resolved = path.isAbsolute(trimmed)
+    ? path.resolve(/*turbopackIgnore: true*/ trimmed)
+    : path.resolve(/*turbopackIgnore: true*/ projectRoot(), trimmed)
+
+  const allowAbsolute =
+    process.env.BIN_ANALYSIS_ALLOW_ABSOLUTE === '1' ||
+    process.env.PROBE_ALLOW_ABSOLUTE === '1' ||
+    process.env.NODE_ENV !== 'production'
+  const underRoot =
+    resolved === dataRoot || resolved.startsWith(dataRoot + path.sep)
+
+  if (!underRoot && !allowAbsolute) {
+    throw new Error(
+      `CSV path must be under ${dataRoot} (set BIN_ANALYSIS_ALLOW_ABSOLUTE=1 to allow other paths)`,
+    )
   }
-  return path.resolve(/*turbopackIgnore: true*/ projectRoot(), trimmed)
+  return resolved
 }
 
 function num(v: unknown): number | null {

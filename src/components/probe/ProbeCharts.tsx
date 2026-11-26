@@ -164,11 +164,13 @@ export function BinParetoChart({
     bin: String(b.bin),
     count: b.count,
     pct: (100 * b.count) / overallTotal,
-    fill: BIN_PALETTE[i % BIN_PALETTE.length],
+    fill: b.bin === 1 ? '#1b8a5a' : BIN_PALETTE[i % BIN_PALETTE.length],
   }))
 
-  // Top fail bins by period as % of that period's top-bin total (stacked to 100%)
+  // Top bins by period as % of that period's top-bin total (stacked to 100%)
   const topBinIds = overall.slice(0, 5).map((b) => b.bin)
+  const binColor = (id: number, i: number) =>
+    id === 1 ? '#1b8a5a' : BIN_PALETTE[i % BIN_PALETTE.length]
   const trendRows = periods.map((p) => {
     const counts = topBinIds.map(
       (id) => p.bins.find((b) => b.bin === id)?.count || 0,
@@ -185,7 +187,7 @@ export function BinParetoChart({
     <div className="panel panel-pad">
       <h2 className="panel-title">{title}</h2>
       <p className="panel-sub">
-        Top 10 fail bins (excludes pass bin 1 and bin 93) · die share
+        Top 10 bins (includes pass bin 1; excludes bin 93) · die share
       </p>
       <div className="probe-chart">
         <ResponsiveContainer width="100%" height="100%">
@@ -227,10 +229,10 @@ export function BinParetoChart({
       {trendRows.length > 0 && topBinIds.length > 0 && (
         <>
           <h3 className="panel-title" style={{ marginTop: 18, fontSize: '0.95rem' }}>
-            Top fail bins by period
+            Top bins by period
           </h3>
           <p className="panel-sub" style={{ marginTop: -8 }}>
-            Share of top fail bins (%) · stacked to 100% per period
+            Share of top bins (%) · stacked to 100% per period
           </p>
           <div className="probe-chart">
             <ResponsiveContainer width="100%" height="100%">
@@ -260,9 +262,9 @@ export function BinParetoChart({
                   <Bar
                     key={id}
                     dataKey={`bin_${id}`}
-                    name={`Bin ${id}`}
+                    name={id === 1 ? 'Bin 1 (pass)' : `Bin ${id}`}
                     stackId="a"
-                    fill={BIN_PALETTE[i % BIN_PALETTE.length]}
+                    fill={binColor(id, i)}
                   />
                 ))}
               </BarChart>

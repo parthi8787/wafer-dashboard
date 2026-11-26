@@ -225,7 +225,7 @@ export async function GET(req: NextRequest) {
     .map((p) => ({
       key: p.key,
       label: p.label,
-      bins: topBins(p.binCounts, 10, true, hideBins),
+      bins: topBins(p.binCounts, 10, false, hideBins),
     }))
 
   const binParetoMonthly = [...byMonth.values()]
@@ -233,13 +233,13 @@ export async function GET(req: NextRequest) {
     .map((p) => ({
       key: p.key,
       label: p.label,
-      bins: topBins(p.binCounts, 10, true, hideBins),
+      bins: topBins(p.binCounts, 10, false, hideBins),
     }))
 
   const binsOverall = topBins(
     Object.fromEntries(binTotals.entries()),
     10,
-    true,
+    false,
     hideBins,
   )
 

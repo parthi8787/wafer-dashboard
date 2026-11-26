@@ -224,10 +224,10 @@ export async function GET(req: NextRequest) {
       avgTtime,
       dateMin: wafers.length
         ? wafers.reduce((m, w) => (w.endDay < m ? w.endDay : m), wafers[0].endDay)
-        : state.dateMin,
+        : null,
       dateMax: wafers.length
         ? wafers.reduce((m, w) => (w.endDay > m ? w.endDay : m), wafers[0].endDay)
-        : state.dateMax,
+        : null,
     },
     weekly,
     monthly,

@@ -220,21 +220,25 @@ export async function GET(req: NextRequest) {
   // Bin 93 hidden from pareto on SDS/SDT/SDE (and All). Yield still SDS=all, SDT/SDE−93.
   const hideBins = paretoExcludeBins(lcode)
 
-  const binParetoWeekly = [...byWeek.values()]
-    .sort((a, b) => a.key.localeCompare(b.key))
-    .map((p) => ({
+  function toParetoPeriod(p: PeriodAgg) {
+    return {
       key: p.key,
       label: p.label,
+      dies: p.dies,
+      /** Same denominator as yield (SDS: all dies; SDT/SDE: dies − bin 93). */
+      yieldDenom: p.yieldDenom,
+      pass: p.pass,
       bins: topBins(p.binCounts, 10, false, hideBins),
-    }))
+    }
+  }
+
+  const binParetoWeekly = [...byWeek.values()]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map(toParetoPeriod)
 
   const binParetoMonthly = [...byMonth.values()]
     .sort((a, b) => a.key.localeCompare(b.key))
-    .map((p) => ({
-      key: p.key,
-      label: p.label,
-      bins: topBins(p.binCounts, 10, false, hideBins),
-    }))
+    .map(toParetoPeriod)
 
   const binsOverall = topBins(
     Object.fromEntries(binTotals.entries()),

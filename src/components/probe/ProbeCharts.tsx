@@ -62,7 +62,10 @@ export function YieldTrendChart({
   return (
     <div className="panel panel-pad">
       <h2 className="panel-title">{title}</h2>
-      <p className="panel-sub">Yield % (labeled) and wafers tested by period</p>
+      <p className="panel-sub">
+        Yield % = pass ÷ yield-eligible dies (SDS: all dies; SDT/SDE: dies − bin 93) · bars =
+        wafers
+      </p>
       <div className="probe-chart">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 24, right: 16, left: 0, bottom: 0 }}>
@@ -146,10 +149,17 @@ export function YieldTrendChart({
 type ParetoPeriod = {
   key: string
   label: string
+  dies?: number
+  yieldDenom?: number
+  pass?: number
   bins: Array<{ bin: number; count: number }>
 }
 
-/** Flatten period bin lists into a chart-friendly top-10 series for the latest/overall view. */
+/**
+ * Top bar = die counts summed over the full filtered range (binsOverall).
+ * Stacked trend = each period’s bin share of that period’s yieldDenom
+ * (same base as yield → Bin 1 % matches the yield trend).
+ */
 export function BinParetoChart({
   periods,
   overall,
@@ -167,19 +177,27 @@ export function BinParetoChart({
     fill: b.bin === 1 ? '#1b8a5a' : BIN_PALETTE[i % BIN_PALETTE.length],
   }))
 
-  // Top bins by period as % of that period's top-bin total (stacked to 100%)
   const topBinIds = overall.slice(0, 5).map((b) => b.bin)
   const binColor = (id: number, i: number) =>
     id === 1 ? '#1b8a5a' : BIN_PALETTE[i % BIN_PALETTE.length]
+
   const trendRows = periods.map((p) => {
-    const counts = topBinIds.map(
-      (id) => p.bins.find((b) => b.bin === id)?.count || 0,
-    )
-    const total = counts.reduce((a, b) => a + b, 0) || 1
+    const denom =
+      p.yieldDenom && p.yieldDenom > 0
+        ? p.yieldDenom
+        : p.bins.reduce((s, b) => s + b.count, 0) || 1
     const row: Record<string, string | number> = { label: p.label }
-    topBinIds.forEach((id, i) => {
-      row[`bin_${id}`] = (100 * counts[i]) / total
+    let shown = 0
+    topBinIds.forEach((id) => {
+      const count =
+        id === 1 && p.pass != null
+          ? p.pass
+          : p.bins.find((b) => b.bin === id)?.count || 0
+      const pct = (100 * count) / denom
+      row[`bin_${id}`] = pct
+      shown += pct
     })
+    row.other = Math.max(0, 100 - shown)
     return row
   })
 
@@ -187,7 +205,8 @@ export function BinParetoChart({
     <div className="panel panel-pad">
       <h2 className="panel-title">{title}</h2>
       <p className="panel-sub">
-        Top 10 bins (includes pass bin 1; excludes bin 93) · die share
+        Top chart = die totals for the filtered range (bin 93 excluded) · Stacked = % of
+        yield-eligible dies per period (Bin 1 matches yield trend)
       </p>
       <div className="probe-chart">
         <ResponsiveContainer width="100%" height="100%">
@@ -232,7 +251,7 @@ export function BinParetoChart({
             Top bins by period
           </h3>
           <p className="panel-sub" style={{ marginTop: -8 }}>
-            Share of top bins (%) · stacked to 100% per period
+            % of period dies (not renormalized to top-5 only) · Other = remaining bins
           </p>
           <div className="probe-chart">
             <ResponsiveContainer width="100%" height="100%">
@@ -267,6 +286,7 @@ export function BinParetoChart({
                     fill={binColor(id, i)}
                   />
                 ))}
+                <Bar dataKey="other" name="Other" stackId="a" fill="#cbd5e1" />
               </BarChart>
             </ResponsiveContainer>
           </div>

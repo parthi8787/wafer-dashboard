@@ -49,11 +49,17 @@ type Summary = {
   binParetoWeekly: Array<{
     key: string
     label: string
+    dies: number
+    yieldDenom: number
+    pass: number
     bins: Array<{ bin: number; count: number }>
   }>
   binParetoMonthly: Array<{
     key: string
     label: string
+    dies: number
+    yieldDenom: number
+    pass: number
     bins: Array<{ bin: number; count: number }>
   }>
   binsOverall: Array<{ bin: number; count: number }>
@@ -439,22 +445,14 @@ export function ProbeDashboard() {
 
       <section className="probe-grid-2" style={{ marginTop: 14 }}>
         <BinParetoChart
-          title="Bin pareto top 10 — weekly"
+          title="Bin pareto top 10 — by week"
           periods={summary?.binParetoWeekly || []}
-          overall={
-            summary?.binParetoWeekly?.length
-              ? summary.binParetoWeekly[summary.binParetoWeekly.length - 1].bins
-              : summary?.binsOverall || []
-          }
+          overall={summary?.binsOverall || []}
         />
         <BinParetoChart
-          title="Bin pareto top 10 — monthly"
+          title="Bin pareto top 10 — by month"
           periods={summary?.binParetoMonthly || []}
-          overall={
-            summary?.binParetoMonthly?.length
-              ? summary.binParetoMonthly[summary.binParetoMonthly.length - 1].bins
-              : summary?.binsOverall || []
-          }
+          overall={summary?.binsOverall || []}
         />
       </section>
     </div>

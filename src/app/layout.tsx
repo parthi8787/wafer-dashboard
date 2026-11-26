@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'WaferTrack — Movement & Die Results',
-  description: 'Track wafer movements and die test results from ADF-landed data',
+  title: 'Wafer Dashboard — Bin Analysis & Probe',
+  description:
+    'Class/GDR bin analysis with wafer-map commonality, and probe CSV yield dashboards',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

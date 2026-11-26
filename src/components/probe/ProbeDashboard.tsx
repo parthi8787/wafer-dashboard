@@ -219,7 +219,7 @@ export function ProbeDashboard() {
         </div>
         <div className="probe-nav">
           <Link className="probe-nav-link" href="/">
-            ← WaferTrack movements
+            ← Bin analysis
           </Link>
         </div>
       </header>
@@ -379,13 +379,6 @@ export function ProbeDashboard() {
         <div className="panel panel-pad probe-kpi">
           <div className="kpi-label">Wafers</div>
           <div className="kpi-value">{fmt(summary?.kpis.wafers)}</div>
-        </div>
-        <div className="panel panel-pad probe-kpi" title="Count of tested die coordinates (CSV rows): each row is one die at (wafxloc, wafyloc) on a wafer.">
-          <div className="kpi-label">Die sites</div>
-          <div className="kpi-value">{fmt(summary?.kpis.dies)}</div>
-          <div className="kpi-hint">
-            CSV rows = tested die locations (x,y) on wafers
-          </div>
         </div>
         <div className="panel panel-pad probe-kpi">
           <div className="kpi-label">Yield</div>

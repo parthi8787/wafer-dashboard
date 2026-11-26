@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { ActualSummaryTable } from '@/components/probe/ActualSummaryTable'
+import { LotMultiSelect } from '@/components/probe/LotMultiSelect'
 import { BinParetoChart, YieldTrendChart } from '@/components/probe/ProbeCharts'
 
 const DEFAULT_PATH = 'data/probe/wafer-data.csv'
@@ -14,6 +15,7 @@ type PeriodRow = {
   dies: number
   yieldPct: number
   avgTtime: number
+  tpName?: string
 }
 
 type Summary = {
@@ -63,6 +65,15 @@ type Config = {
   loadedAt: string | null
 }
 
+type FilterState = {
+  dateFrom: string
+  dateTo: string
+  lotids: string[]
+  prdct: string
+  prgnm: string
+  lcode: string
+}
+
 function fmt(n: number | null | undefined, digits = 0) {
   if (n == null || Number.isNaN(n)) return '—'
   return Number(n).toLocaleString(undefined, {
@@ -80,18 +91,20 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   return data as T
 }
 
+const EMPTY_FILTERS: FilterState = {
+  dateFrom: '',
+  dateTo: '',
+  lotids: [],
+  prdct: '',
+  prgnm: '',
+  lcode: '',
+}
+
 export function ProbeDashboard() {
   const [pathInput, setPathInput] = useState(DEFAULT_PATH)
   const [config, setConfig] = useState<Config | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
-  const [filters, setFilters] = useState({
-    dateFrom: '',
-    dateTo: '',
-    lotid: '',
-    prdct: '',
-    prgnm: '',
-    lcode: '',
-  })
+  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS)
   const [periodView, setPeriodView] = useState<'monthly' | 'weekly'>('monthly')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -102,9 +115,12 @@ export function ProbeDashboard() {
     setError(null)
     try {
       const qs = new URLSearchParams()
-      for (const [k, v] of Object.entries(nextFilters)) {
-        if (v) qs.set(k, v)
-      }
+      if (nextFilters.dateFrom) qs.set('dateFrom', nextFilters.dateFrom)
+      if (nextFilters.dateTo) qs.set('dateTo', nextFilters.dateTo)
+      if (nextFilters.lotids.length) qs.set('lotids', nextFilters.lotids.join(','))
+      if (nextFilters.prdct) qs.set('prdct', nextFilters.prdct)
+      if (nextFilters.prgnm) qs.set('prgnm', nextFilters.prgnm)
+      if (nextFilters.lcode) qs.set('lcode', nextFilters.lcode)
       const suffix = qs.toString() ? `?${qs}` : ''
       const data = await request<Summary>(`/api/probe/summary${suffix}`)
       setSummary(data)
@@ -141,16 +157,8 @@ export function ProbeDashboard() {
       })
       const cfg = await request<Config>('/api/probe/config')
       setConfig(cfg)
-      const cleared = {
-        dateFrom: '',
-        dateTo: '',
-        lotid: '',
-        prdct: '',
-        prgnm: '',
-        lcode: '',
-      }
-      setFilters(cleared)
-      await loadSummary(cleared)
+      setFilters(EMPTY_FILTERS)
+      await loadSummary(EMPTY_FILTERS)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -253,17 +261,11 @@ export function ProbeDashboard() {
         </label>
         <label className="probe-field">
           <span>Lot</span>
-          <select
-            value={filters.lotid}
-            onChange={(e) => setFilters((f) => ({ ...f, lotid: e.target.value }))}
-          >
-            <option value="">All</option>
-            {(summary?.filters.lotids || []).map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
+          <LotMultiSelect
+            options={summary?.filters.lotids || []}
+            selected={filters.lotids}
+            onChange={(lotids) => setFilters((f) => ({ ...f, lotids }))}
+          />
         </label>
         <label className="probe-field">
           <span>Product</span>
@@ -314,16 +316,8 @@ export function ProbeDashboard() {
           type="button"
           className="btn-secondary"
           onClick={() => {
-            const cleared = {
-              dateFrom: '',
-              dateTo: '',
-              lotid: '',
-              prdct: '',
-              prgnm: '',
-              lcode: '',
-            }
-            setFilters(cleared)
-            loadSummary(cleared)
+            setFilters(EMPTY_FILTERS)
+            loadSummary(EMPTY_FILTERS)
           }}
         >
           Clear
@@ -339,9 +333,12 @@ export function ProbeDashboard() {
           <div className="kpi-label">Wafers</div>
           <div className="kpi-value">{fmt(summary?.kpis.wafers)}</div>
         </div>
-        <div className="panel panel-pad probe-kpi">
+        <div className="panel panel-pad probe-kpi" title="Count of tested die coordinates (CSV rows): each row is one die at (wafxloc, wafyloc) on a wafer.">
           <div className="kpi-label">Die sites</div>
           <div className="kpi-value">{fmt(summary?.kpis.dies)}</div>
+          <div className="kpi-hint">
+            CSV rows = tested die locations (x,y) on wafers
+          </div>
         </div>
         <div className="panel panel-pad probe-kpi">
           <div className="kpi-label">Yield</div>
@@ -383,6 +380,7 @@ export function ProbeDashboard() {
           <ActualSummaryTable
             title="Actual — Monthly"
             columns={summary?.actualColumns || []}
+            showTp
           />
         ) : (
           <ActualSummaryTable title="Actual — Weekly" columns={weeklyCols} />
@@ -405,7 +403,6 @@ export function ProbeDashboard() {
           title="Bin pareto top 10 — weekly"
           periods={summary?.binParetoWeekly || []}
           overall={
-            // Use latest week bins if present, else overall
             summary?.binParetoWeekly?.length
               ? summary.binParetoWeekly[summary.binParetoWeekly.length - 1].bins
               : summary?.binsOverall || []

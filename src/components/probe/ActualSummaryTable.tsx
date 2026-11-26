@@ -7,6 +7,7 @@ type PeriodCol = {
   wafers: number
   yieldPct: number
   avgTtime: number
+  tpName?: string
 }
 
 function fmtNum(n: number, digits = 1) {
@@ -20,9 +21,11 @@ function fmtNum(n: number, digits = 1) {
 export function ActualSummaryTable({
   title,
   columns,
+  showTp = false,
 }: {
   title: string
   columns: PeriodCol[]
+  showTp?: boolean
 }) {
   if (!columns.length) {
     return (
@@ -52,6 +55,16 @@ export function ActualSummaryTable({
             </tr>
           </thead>
           <tbody>
+            {showTp && (
+              <tr>
+                <th className="actual-row-label">TP name</th>
+                {columns.map((c) => (
+                  <td key={`${c.key}-tp`} className="actual-tp" title={c.tpName || ''}>
+                    {c.tpName || '—'}
+                  </td>
+                ))}
+              </tr>
+            )}
             <tr>
               <th className="actual-row-label">Avg TT</th>
               {columns.map((c) => (
@@ -82,6 +95,7 @@ export function ActualSummaryTable({
       <p className="actual-note">
         Avg TT = mean ttime on good bin (curibin 1) only · Yield = pass /
         yield-eligible die (SDT/SDE exclude bin 93)
+        {showTp ? ' · TP name = test program (prgnm)' : ''}
       </p>
     </div>
   )

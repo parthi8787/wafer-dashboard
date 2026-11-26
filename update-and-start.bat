@@ -34,7 +34,15 @@ echo.
 git checkout main
 if errorlevel 1 goto :fail
 
-git pull origin main
+git fetch origin main
+if errorlevel 1 goto :fail
+
+REM Local copies of these files (untracked) block pull — remove if not tracked.
+call :remove_if_untracked update-and-start.bat
+call :remove_if_untracked SETUP-FROM-HOME.bat
+
+REM Sync exactly to origin/main (discard local tracked edits on main).
+git reset --hard origin/main
 if errorlevel 1 goto :fail
 
 if not exist "node_modules\" (
@@ -53,19 +61,25 @@ echo.
 call npm start
 goto :eof
 
+:remove_if_untracked
+git ls-files --error-unmatch "%~1" >nul 2>&1
+if errorlevel 1 (
+  if exist "%~1" (
+    echo Removing untracked local file so update can proceed: %~1
+    del /f /q "%~1" >nul 2>&1
+  )
+)
+exit /b 0
+
 :fail
 echo.
 echo FAILED.
 echo.
-echo Fix:
-echo   1. Open PowerShell
-echo   2. Run:
-echo        cd %%USERPROFILE%%
-echo        git clone https://github.com/parthi8787/wafer-dashboard.git
-echo        cd wafer-dashboard
-echo        .\update-and-start.bat
-echo.
-echo Or open the cloned wafer-dashboard folder and double-click update-and-start.bat there.
+echo Quick fix in PowerShell:
+echo   cd $HOME\wafer-dashboard
+echo   del .\update-and-start.bat
+echo   git pull origin main
+echo   .\update-and-start.bat
 echo.
 pause
 exit /b 1

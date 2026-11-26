@@ -11,9 +11,8 @@ export const LCODE_LABELS: Record<string, string> = {
  *   SDT (next)   → SDS fails are binned out as soft-bin 93.
  *   SDE (last)   → SDS+SDT fails are binned out as soft-bin 93.
  *
- * Yield for SDT/SDE therefore excludes bin 93 from the denominator
- * (carry-forward prior-flow fails, not new fails at that step).
- * SDS yield uses all dies — do not exclude bin 93.
+ * For SDT and SDE, bin 93 is prior-flow bin-out — exclude it from both
+ * yield denominator and fail-pareto counts. SDS keeps every fail bin.
  */
 export const YIELD_EXCLUDE_BINS = new Set(['93'])
 export const YIELD_EXCLUDE_BIN93_LCODES = new Set([
@@ -54,10 +53,13 @@ export function yieldPct(
   return denom ? (100 * passCount) / denom : 0
 }
 
-/**
- * Pareto: SDS shows all fail bins as-is.
- * Bin 93 is meaningful on SDT/SDE (prior-flow bin-out) so it stays visible there.
- */
-export function paretoExcludeBins(_lcodeFilter: string): Set<string> {
+/** True when this soft-bin must be omitted from SDT/SDE fail pareto. */
+export function excludeBinFromPareto(lcode: string, bin: string): boolean {
+  return YIELD_EXCLUDE_BIN93_LCODES.has(lcode) && YIELD_EXCLUDE_BINS.has(bin)
+}
+
+/** Filter-level exclude set when the active LCode is SDT or SDE. */
+export function paretoExcludeBins(lcodeFilter: string): Set<string> {
+  if (YIELD_EXCLUDE_BIN93_LCODES.has(lcodeFilter)) return new Set(YIELD_EXCLUDE_BINS)
   return new Set()
 }

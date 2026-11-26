@@ -213,8 +213,8 @@ export function ProbeDashboard() {
             Wafer<span>Probe</span>
           </div>
           <p className="brand-sub">
-            Flow SDS → SDT → SDE · SDS yield = all dies · SDT/SDE yield excludes bin 93
-            (prior-flow bin-out) · Avg TT on good bin only
+            Flow SDS → SDT → SDE · SDS: all fail bins · SDT/SDE: yield &amp; pareto exclude
+            bin 93 (prior-flow bin-out) · Avg TT on good bin only
           </p>
         </div>
         <div className="probe-nav">

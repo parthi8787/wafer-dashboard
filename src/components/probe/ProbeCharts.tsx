@@ -1,11 +1,10 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   ComposedChart,
   LabelList,
   Legend,
@@ -155,10 +154,69 @@ type ParetoPeriod = {
   bins: Array<{ bin: number; count: number }>
 }
 
+type TipEntry = {
+  name?: string
+  value?: number | string
+  color?: string
+  dataKey?: string | number
+}
+
+/** Tooltip rows sorted high % → low %. */
+function SortedPctTooltip({
+  active,
+  label,
+  payload,
+}: {
+  active?: boolean
+  label?: string | number
+  payload?: TipEntry[]
+}): ReactNode {
+  if (!active || !payload?.length) return null
+  const rows = [...payload]
+    .filter((p) => p.value != null && Number(p.value) > 0)
+    .map((p) => ({
+      name: String(p.name ?? p.dataKey ?? ''),
+      value: Number(p.value),
+      color: p.color || '#fff',
+    }))
+    .sort((a, b) => b.value - a.value)
+
+  return (
+    <div style={{ ...tipStyle(), padding: '10px 12px', minWidth: 140 }}>
+      <div style={{ marginBottom: 6, fontWeight: 600 }}>{label}</div>
+      {rows.map((r) => (
+        <div
+          key={r.name}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 16,
+            marginTop: 3,
+            color: '#fff',
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                background: r.color,
+                flexShrink: 0,
+              }}
+            />
+            {r.name}
+          </span>
+          <span style={{ fontWeight: 600 }}>{r.value.toFixed(1)}%</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /**
- * Top bar = die counts summed over the full filtered range (binsOverall).
- * Stacked trend = each period’s bin share of that period’s yieldDenom
- * (same base as yield → Bin 1 % matches the yield trend).
+ * Stacked bin share by period (% of yieldDenom).
+ * Bin 1 % matches the yield trend; tooltip lists bins high % → low %.
  */
 export function BinParetoChart({
   periods,
@@ -169,14 +227,6 @@ export function BinParetoChart({
   overall: Array<{ bin: number; count: number }>
   title: string
 }) {
-  const overallTotal = overall.reduce((s, b) => s + b.count, 0) || 1
-  const chartData = overall.map((b, i) => ({
-    bin: String(b.bin),
-    count: b.count,
-    pct: (100 * b.count) / overallTotal,
-    fill: b.bin === 1 ? '#1b8a5a' : BIN_PALETTE[i % BIN_PALETTE.length],
-  }))
-
   const topBinIds = overall.slice(0, 5).map((b) => b.bin)
   const binColor = (id: number, i: number) =>
     id === 1 ? '#1b8a5a' : BIN_PALETTE[i % BIN_PALETTE.length]
@@ -201,97 +251,51 @@ export function BinParetoChart({
     return row
   })
 
+  if (!trendRows.length || !topBinIds.length) {
+    return (
+      <div className="panel panel-pad">
+        <h2 className="panel-title">{title}</h2>
+        <div className="empty">No bin data for current filters.</div>
+      </div>
+    )
+  }
+
   return (
     <div className="panel panel-pad">
       <h2 className="panel-title">{title}</h2>
       <p className="panel-sub">
-        Top chart = die totals for the filtered range (bin 93 excluded) · Stacked = % of
-        yield-eligible dies per period (Bin 1 matches yield trend)
+        % of yield-eligible dies per period (Bin 1 matches yield) · bin 93 excluded · tooltip
+        sorted high → low
       </p>
       <div className="probe-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <BarChart data={trendRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid
               stroke="rgba(10,37,64,0.08)"
               strokeDasharray="3 3"
               vertical={false}
             />
-            <XAxis dataKey="bin" tick={{ fontSize: 11, fill: '#6b7f93' }} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7f93' }} />
             <YAxis
+              domain={[0, 100]}
               tick={{ fontSize: 11, fill: '#6b7f93' }}
-              tickFormatter={(v) => `${v}`}
+              tickFormatter={(v) => `${v}%`}
             />
-            <Tooltip
-              contentStyle={tipStyle()}
-              labelStyle={tipLabelStyle}
-              itemStyle={tipItemStyle}
-              formatter={(value, name, item) => {
-                const payload = item?.payload as { count?: number; pct?: number } | undefined
-                if (payload?.count != null && payload?.pct != null) {
-                  return [
-                    `${payload.count.toLocaleString()} (${payload.pct.toFixed(1)}%)`,
-                    'Die',
-                  ]
-                }
-                return [value, name]
-              }}
-              labelFormatter={(label) => `Bin ${label}`}
-            />
-            <Bar dataKey="count" name="Die count" radius={[6, 6, 0, 0]}>
-              {chartData.map((entry) => (
-                <Cell key={entry.bin} fill={entry.fill} />
-              ))}
-            </Bar>
+            <Tooltip content={<SortedPctTooltip />} />
+            <Legend />
+            {topBinIds.map((id, i) => (
+              <Bar
+                key={id}
+                dataKey={`bin_${id}`}
+                name={id === 1 ? 'Bin 1 (pass)' : `Bin ${id}`}
+                stackId="a"
+                fill={binColor(id, i)}
+              />
+            ))}
+            <Bar dataKey="other" name="Other" stackId="a" fill="#cbd5e1" />
           </BarChart>
         </ResponsiveContainer>
       </div>
-      {trendRows.length > 0 && topBinIds.length > 0 && (
-        <>
-          <h3 className="panel-title" style={{ marginTop: 18, fontSize: '0.95rem' }}>
-            Top bins by period
-          </h3>
-          <p className="panel-sub" style={{ marginTop: -8 }}>
-            % of period dies (not renormalized to top-5 only) · Other = remaining bins
-          </p>
-          <div className="probe-chart">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={trendRows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid
-                  stroke="rgba(10,37,64,0.08)"
-                  strokeDasharray="3 3"
-                  vertical={false}
-                />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7f93' }} />
-                <YAxis
-                  domain={[0, 100]}
-                  tick={{ fontSize: 11, fill: '#6b7f93' }}
-                  tickFormatter={(v) => `${v}%`}
-                />
-                <Tooltip
-                  contentStyle={tipStyle()}
-                  labelStyle={tipLabelStyle}
-                  itemStyle={tipItemStyle}
-                  formatter={(value, name) => {
-                    const n = typeof value === 'number' ? value : Number(value)
-                    return [`${n.toFixed(1)}%`, name]
-                  }}
-                />
-                <Legend />
-                {topBinIds.map((id, i) => (
-                  <Bar
-                    key={id}
-                    dataKey={`bin_${id}`}
-                    name={id === 1 ? 'Bin 1 (pass)' : `Bin ${id}`}
-                    stackId="a"
-                    fill={binColor(id, i)}
-                  />
-                ))}
-                <Bar dataKey="other" name="Other" stackId="a" fill="#cbd5e1" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </>
-      )}
     </div>
   )
 }

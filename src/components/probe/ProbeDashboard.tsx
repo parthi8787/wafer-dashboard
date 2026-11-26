@@ -190,8 +190,8 @@ export function ProbeDashboard() {
             Wafer<span>Probe</span>
           </div>
           <p className="brand-sub">
-            Yield &amp; wafer Actuals by week/month · Avg TT on good bin (curibin 1) · Top-10
-            bin pareto trends
+            Yield &amp; wafer Actuals by week/month · Avg TT captured in Actual table (good
+            bin) · Top-10 bin pareto trends
           </p>
         </div>
         <div className="probe-nav">

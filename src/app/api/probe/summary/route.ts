@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureProbeLoaded, getProbeState } from '@/lib/probe/csvStore'
-import { lcodeLabel, yieldDenominator, yieldPct } from '@/lib/probe/lcode'
+import { lcodeLabel, yieldDenominator } from '@/lib/probe/lcode'
 import {
   formatMonthLabel,
   formatQuarterLabel,
@@ -22,6 +22,7 @@ type PeriodAgg = {
   pass: number
   sumGoodTtime: number
   binCounts: Record<string, number>
+  tpCounts: Record<string, number>
 }
 
 function emptyPeriod(key: string, label: string): PeriodAgg {
@@ -34,6 +35,7 @@ function emptyPeriod(key: string, label: string): PeriodAgg {
     pass: 0,
     sumGoodTtime: 0,
     binCounts: {},
+    tpCounts: {},
   }
 }
 
@@ -46,6 +48,16 @@ function addWaferToPeriod(agg: PeriodAgg, w: ProbeWaferSummary) {
   for (const [bin, count] of Object.entries(w.binCounts)) {
     agg.binCounts[bin] = (agg.binCounts[bin] || 0) + count
   }
+  if (w.prgnm) {
+    agg.tpCounts[w.prgnm] = (agg.tpCounts[w.prgnm] || 0) + 1
+  }
+}
+
+function primaryTp(tpCounts: Record<string, number>): string {
+  const entries = Object.entries(tpCounts).sort((a, b) => b[1] - a[1])
+  if (!entries.length) return '—'
+  if (entries.length === 1) return entries[0][0]
+  return entries.map(([name]) => name).join(' · ')
 }
 
 function finalizePeriod(agg: PeriodAgg) {
@@ -56,6 +68,7 @@ function finalizePeriod(agg: PeriodAgg) {
     dies: agg.dies,
     yieldPct: agg.yieldDenom ? (100 * agg.pass) / agg.yieldDenom : 0,
     avgTtime: agg.pass ? agg.sumGoodTtime / agg.pass : 0,
+    tpName: primaryTp(agg.tpCounts),
   }
 }
 
@@ -65,6 +78,14 @@ function topBins(binCounts: Record<string, number>, limit = 10, excludePass = tr
     .map(([bin, count]) => ({ bin: Number(bin), count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, limit)
+}
+
+function parseListParam(raw: string): string[] {
+  if (!raw.trim()) return []
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
 }
 
 export async function GET(req: NextRequest) {
@@ -87,7 +108,12 @@ export async function GET(req: NextRequest) {
 
   const dateFrom = req.nextUrl.searchParams.get('dateFrom') || ''
   const dateTo = req.nextUrl.searchParams.get('dateTo') || ''
-  const lotid = req.nextUrl.searchParams.get('lotid') || ''
+  // Support multi-lot: lotids=a,b,c  (legacy lotid= still works)
+  const lotids = parseListParam(
+    req.nextUrl.searchParams.get('lotids') ||
+      req.nextUrl.searchParams.get('lotid') ||
+      '',
+  )
   const prdct = req.nextUrl.searchParams.get('prdct') || ''
   const prgnm = req.nextUrl.searchParams.get('prgnm') || ''
   const lcode = req.nextUrl.searchParams.get('lcode') || ''
@@ -96,7 +122,7 @@ export async function GET(req: NextRequest) {
   const wafers = state.wafers.filter((w) => {
     if (dateFrom && w.endDay < dateFrom) return false
     if (dateTo && w.endDay > dateTo) return false
-    if (lotid && w.lotid !== lotid) return false
+    if (lotids.length && !lotids.includes(w.lotid)) return false
     if (prdct && w.prdct !== prdct) return false
     if (prgnm && w.prgnm !== prgnm) return false
     if (lcode && w.lcode !== lcode) return false
@@ -117,11 +143,8 @@ export async function GET(req: NextRequest) {
   const byMonth = new Map<string, PeriodAgg>()
   const byQuarter = new Map<string, PeriodAgg>()
   const binTotals = new Map<string, number>()
-  const lcodeSet = new Set<string>()
 
   for (const w of wafers) {
-    lcodeSet.add(w.lcode)
-
     const wk = weekKeyFromDay(w.endDay)
     const mk = monthKeyFromDay(w.endDay)
     const qk = quarterKeyFromDay(w.endDay)
@@ -151,8 +174,6 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => a.key.localeCompare(b.key))
     .map(finalizePeriod)
 
-  // Monthly view columns with quarter totals after quarter-end months,
-  // and the in-progress quarter after the latest incomplete month.
   const actualColumns: Array<{
     key: string
     label: string
@@ -160,6 +181,7 @@ export async function GET(req: NextRequest) {
     wafers: number
     yieldPct: number
     avgTtime: number
+    tpName: string
   }> = []
   for (const m of monthly) {
     actualColumns.push({ ...m, kind: 'month' })
@@ -197,18 +219,19 @@ export async function GET(req: NextRequest) {
       bins: topBins(p.binCounts, 10, true),
     }))
 
-  const binsOverall = topBins(
-    Object.fromEntries(binTotals.entries()),
-    10,
-    true,
-  )
+  const binsOverall = topBins(Object.fromEntries(binTotals.entries()), 10, true)
 
+  // Always expose full-dataset filter options so dropdowns don't shrink after Apply
   const filters = {
-    ...state.filters,
-    lcodes: [...lcodeSet].sort(),
-    lcodeOptions: [...lcodeSet]
-      .sort()
-      .map((code) => ({ value: code, label: lcodeLabel(code) })),
+    lotids: state.filters.lotids,
+    prdcts: state.filters.prdcts,
+    prgnms: state.filters.prgnms,
+    lcodes: state.filters.lcodes,
+    wafscribes: state.filters.wafscribes,
+    lcodeOptions: state.filters.lcodes.map((code) => ({
+      value: code,
+      label: lcodeLabel(code),
+    })),
   }
 
   return NextResponse.json({

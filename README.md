@@ -57,3 +57,4 @@ See `data/bin-analysis/README.md`.
 
 - `data/bin-analysis/README.md` — Class/GDR schema
 - `docs/` — ADF / hosting notes (legacy movements pipeline)
+

@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActualSummaryTable } from '@/components/probe/ActualSummaryTable'
 import { LotMultiSelect } from '@/components/probe/LotMultiSelect'
 import { BinParetoChart, YieldTrendChart } from '@/components/probe/ProbeCharts'
+import { lcodeLabel } from '@/lib/probe/lcode'
 
 const DEFAULT_PATH = 'data/probe/wafer-data.csv'
 
@@ -109,8 +110,10 @@ export function ProbeDashboard() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [applied, setApplied] = useState<FilterState>(EMPTY_FILTERS)
+  const skipAutoApply = useRef(true)
 
-  const loadSummary = useCallback(async (nextFilters = filters) => {
+  const loadSummary = useCallback(async (nextFilters: FilterState) => {
     setLoading(true)
     setError(null)
     try {
@@ -124,12 +127,13 @@ export function ProbeDashboard() {
       const suffix = qs.toString() ? `?${qs}` : ''
       const data = await request<Summary>(`/api/probe/summary${suffix}`)
       setSummary(data)
+      setApplied(nextFilters)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [])
 
   useEffect(() => {
     ;(async () => {
@@ -137,14 +141,25 @@ export function ProbeDashboard() {
         const cfg = await request<Config>('/api/probe/config')
         setConfig(cfg)
         if (cfg.csvPath) setPathInput(cfg.csvPath)
-        await loadSummary()
+        await loadSummary(EMPTY_FILTERS)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
         setLoading(false)
       }
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [loadSummary])
+
+  // Auto-apply when filters change (after first load)
+  useEffect(() => {
+    if (skipAutoApply.current) {
+      skipAutoApply.current = false
+      return
+    }
+    const t = setTimeout(() => {
+      loadSummary(filters)
+    }, 150)
+    return () => clearTimeout(t)
+  }, [filters, loadSummary])
 
   async function onLoadPath() {
     setBusy(true)
@@ -173,7 +188,7 @@ export function ProbeDashboard() {
       await request('/api/probe/reload', { method: 'POST' })
       const cfg = await request<Config>('/api/probe/config')
       setConfig(cfg)
-      await loadSummary()
+      await loadSummary(filters)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -235,6 +250,38 @@ export function ProbeDashboard() {
       </div>
 
       {error && <div className="panel state error">{error}</div>}
+
+      {(applied.lcode ||
+        applied.lotids.length > 0 ||
+        applied.prdct ||
+        applied.prgnm ||
+        applied.dateFrom ||
+        applied.dateTo) && (
+        <div className="probe-active-filters">
+          <strong>Active filter:</strong>
+          {applied.lcode && (
+            <span className="probe-filter-chip">
+              LCode {lcodeLabel(applied.lcode)}
+            </span>
+          )}
+          {applied.lotids.length > 0 && (
+            <span className="probe-filter-chip">
+              Lots {applied.lotids.length === 1 ? applied.lotids[0] : `${applied.lotids.length} selected`}
+            </span>
+          )}
+          {applied.prdct && (
+            <span className="probe-filter-chip">Product {applied.prdct}</span>
+          )}
+          {applied.prgnm && (
+            <span className="probe-filter-chip">Program {applied.prgnm}</span>
+          )}
+          {(applied.dateFrom || applied.dateTo) && (
+            <span className="probe-filter-chip">
+              {applied.dateFrom || '…'} → {applied.dateTo || '…'}
+            </span>
+          )}
+        </div>
+      )}
 
       <form
         className="probe-filters"

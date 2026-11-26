@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureProbeLoaded, getProbeState } from '@/lib/probe/csvStore'
-import { lcodeLabel, yieldDenominator } from '@/lib/probe/lcode'
+import { lcodeLabel, paretoExcludeBins, yieldDenominator } from '@/lib/probe/lcode'
 import {
   formatMonthLabel,
   formatQuarterLabel,
@@ -72,9 +72,15 @@ function finalizePeriod(agg: PeriodAgg) {
   }
 }
 
-function topBins(binCounts: Record<string, number>, limit = 10, excludePass = true) {
+function topBins(
+  binCounts: Record<string, number>,
+  limit = 10,
+  excludePass = true,
+  extraExclude: Set<string> = new Set(),
+) {
   return Object.entries(binCounts)
     .filter(([bin]) => !(excludePass && bin === '1'))
+    .filter(([bin]) => !extraExclude.has(bin))
     .map(([bin, count]) => ({ bin: Number(bin), count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, limit)
@@ -203,12 +209,15 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // SDS views must not show bin 93 in fail pareto (bin 93 is SDT-only for this flow)
+  const hideBins = paretoExcludeBins(lcode)
+
   const binParetoWeekly = [...byWeek.values()]
     .sort((a, b) => a.key.localeCompare(b.key))
     .map((p) => ({
       key: p.key,
       label: p.label,
-      bins: topBins(p.binCounts, 10, true),
+      bins: topBins(p.binCounts, 10, true, hideBins),
     }))
 
   const binParetoMonthly = [...byMonth.values()]
@@ -216,10 +225,15 @@ export async function GET(req: NextRequest) {
     .map((p) => ({
       key: p.key,
       label: p.label,
-      bins: topBins(p.binCounts, 10, true),
+      bins: topBins(p.binCounts, 10, true, hideBins),
     }))
 
-  const binsOverall = topBins(Object.fromEntries(binTotals.entries()), 10, true)
+  const binsOverall = topBins(
+    Object.fromEntries(binTotals.entries()),
+    10,
+    true,
+    hideBins,
+  )
 
   // Always expose full-dataset filter options so dropdowns don't shrink after Apply
   const filters = {

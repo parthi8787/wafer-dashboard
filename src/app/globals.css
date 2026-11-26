@@ -682,6 +682,92 @@ a {
 }
 
 /* —— Probe CSV dashboard —— */
+.actual-wrap {
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.actual-banner {
+  background: #f5e100;
+  color: #111;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  padding: 10px 14px;
+}
+
+.actual-scroll {
+  overflow-x: auto;
+}
+
+.actual-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+  font-variant-numeric: tabular-nums;
+}
+
+.actual-table th,
+.actual-table td {
+  border: 1px solid #9aa3ad;
+  padding: 10px 12px;
+  text-align: center;
+  background: #e8ecf0;
+  white-space: nowrap;
+}
+
+.actual-corner {
+  background: #e8ecf0 !important;
+  min-width: 88px;
+}
+
+.actual-period {
+  background: #1a1a1a !important;
+  color: #fff !important;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.actual-q {
+  background: #2f7d32 !important;
+  color: #fff !important;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.actual-row-label {
+  background: #dfe5ea !important;
+  color: var(--ink);
+  font-weight: 700;
+  text-align: left !important;
+  font-size: 0.86rem;
+}
+
+.actual-tt {
+  color: #c62828;
+  font-weight: 700;
+}
+
+.actual-yield {
+  color: #2e7d32;
+  font-weight: 700;
+}
+
+.actual-wafers {
+  color: #111;
+  font-weight: 600;
+}
+
+.actual-note {
+  margin: 0;
+  padding: 8px 14px 12px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .probe-nav {
   display: grid;
   gap: 10px;

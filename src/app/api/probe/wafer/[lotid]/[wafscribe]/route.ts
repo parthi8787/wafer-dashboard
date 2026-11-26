@@ -41,7 +41,7 @@ export async function GET(
       dieCount: wafer.dieCount,
       passCount: wafer.passCount,
       yieldPct: wafer.dieCount ? (100 * wafer.passCount) / wafer.dieCount : 0,
-      avgTtime: wafer.dieCount ? wafer.sumTtime / wafer.dieCount : 0,
+      avgTtime: wafer.passCount ? wafer.sumGoodTtime / wafer.passCount : 0,
       minTtime: wafer.minTtime,
       maxTtime: wafer.maxTtime,
       tempr: wafer.tempr,

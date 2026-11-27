@@ -3,66 +3,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppNav } from '@/components/AppNav'
 import { SampleBanner } from '@/components/SampleBanner'
-import { ActualSummaryTable } from '@/components/probe/ActualSummaryTable'
 import { LotMultiSelect } from '@/components/probe/LotMultiSelect'
-import { BinParetoChart, YieldTrendChart } from '@/components/probe/ProbeCharts'
-import { lcodeLabel } from '@/lib/probe/lcode'
+import {
+  ProbeFlowSection,
+  type FlowSummary,
+} from '@/components/probe/ProbeFlowSection'
+import { SDE_LCODE, SDS_LCODE, SDT_LCODE } from '@/lib/probe/lcode'
 
 const DEFAULT_PATH = 'data/probe/wafer-data.csv'
 
-type PeriodRow = {
-  key: string
-  label: string
-  wafers: number
-  dies: number
-  yieldPct: number
-  avgTtime: number
-  tpName?: string
-}
+const FLOWS = [
+  {
+    code: SDS_LCODE,
+    label: 'SDS',
+    blurb: 'First flow · yield = pass ÷ all dies · bin 93 hidden from pareto',
+  },
+  {
+    code: SDT_LCODE,
+    label: 'SDT',
+    blurb: 'After SDS · yield & pareto exclude bin 93 (SDS bin-out)',
+  },
+  {
+    code: SDE_LCODE,
+    label: 'SDE',
+    blurb: 'After SDT · yield & pareto exclude bin 93 (SDS+SDT bin-out)',
+  },
+] as const
 
-type Summary = {
-  meta: {
-    csvPath: string
-    rowCount: number
-    fileBytes: number
-    loadedAt: string | null
-  }
-  filters: {
-    lotids: string[]
-    prdcts: string[]
-    prgnms: string[]
-    lcodes: string[]
-    lcodeOptions?: Array<{ value: string; label: string }>
-  }
-  kpis: {
-    lots: number
-    wafers: number
-    dies: number
-    yieldPct: number
-    avgTtime: number
-    dateMin: string | null
-    dateMax: string | null
-  }
-  weekly: PeriodRow[]
-  monthly: PeriodRow[]
-  actualColumns: Array<PeriodRow & { kind: 'month' | 'quarter' }>
-  binParetoWeekly: Array<{
-    key: string
-    label: string
-    dies: number
-    yieldDenom: number
-    pass: number
-    bins: Array<{ bin: number; count: number }>
-  }>
-  binParetoMonthly: Array<{
-    key: string
-    label: string
-    dies: number
-    yieldDenom: number
-    pass: number
-    bins: Array<{ bin: number; count: number }>
-  }>
-  binsOverall: Array<{ bin: number; count: number }>
+type FilterMeta = {
+  lotids: string[]
+  prdcts: string[]
+  prgnms: string[]
 }
 
 type CsvFileOption = { value: string; label: string; bytes: number }
@@ -82,7 +53,6 @@ type FilterState = {
   lotids: string[]
   prdct: string
   prgnm: string
-  lcode: string
 }
 
 function fmt(n: number | null | undefined, digits = 0) {
@@ -108,13 +78,19 @@ const EMPTY_FILTERS: FilterState = {
   lotids: [],
   prdct: '',
   prgnm: '',
-  lcode: '',
 }
+
+type FlowMap = Record<string, FlowSummary | null>
 
 export function ProbeDashboard() {
   const [pathInput, setPathInput] = useState(DEFAULT_PATH)
   const [config, setConfig] = useState<Config | null>(null)
-  const [summary, setSummary] = useState<Summary | null>(null)
+  const [filterMeta, setFilterMeta] = useState<FilterMeta>({
+    lotids: [],
+    prdcts: [],
+    prgnms: [],
+  })
+  const [flows, setFlows] = useState<FlowMap>({})
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS)
   const [periodView, setPeriodView] = useState<'monthly' | 'weekly'>('monthly')
   const [loading, setLoading] = useState(true)
@@ -123,20 +99,44 @@ export function ProbeDashboard() {
   const [applied, setApplied] = useState<FilterState>(EMPTY_FILTERS)
   const skipAutoApply = useRef(true)
 
-  const loadSummary = useCallback(async (nextFilters: FilterState) => {
+  const loadSummaries = useCallback(async (nextFilters: FilterState) => {
     setLoading(true)
     setError(null)
     try {
-      const qs = new URLSearchParams()
-      if (nextFilters.dateFrom) qs.set('dateFrom', nextFilters.dateFrom)
-      if (nextFilters.dateTo) qs.set('dateTo', nextFilters.dateTo)
-      if (nextFilters.lotids.length) qs.set('lotids', nextFilters.lotids.join(','))
-      if (nextFilters.prdct) qs.set('prdct', nextFilters.prdct)
-      if (nextFilters.prgnm) qs.set('prgnm', nextFilters.prgnm)
-      if (nextFilters.lcode) qs.set('lcode', nextFilters.lcode)
-      const suffix = qs.toString() ? `?${qs}` : ''
-      const data = await request<Summary>(`/api/probe/summary${suffix}`)
-      setSummary(data)
+      const base = new URLSearchParams()
+      if (nextFilters.dateFrom) base.set('dateFrom', nextFilters.dateFrom)
+      if (nextFilters.dateTo) base.set('dateTo', nextFilters.dateTo)
+      if (nextFilters.lotids.length) base.set('lotids', nextFilters.lotids.join(','))
+      if (nextFilters.prdct) base.set('prdct', nextFilters.prdct)
+      if (nextFilters.prgnm) base.set('prgnm', nextFilters.prgnm)
+
+      const results = await Promise.all(
+        FLOWS.map(async (flow) => {
+          const qs = new URLSearchParams(base)
+          qs.set('lcode', flow.code)
+          const data = await request<FlowSummary & { filters?: FilterMeta }>(
+            `/api/probe/summary?${qs}`,
+          )
+          return { code: flow.code, data }
+        }),
+      )
+
+      const next: FlowMap = {}
+      for (const r of results) {
+        next[r.code] = r.data
+      }
+      const metaSource = results.find((r) => r.data && (r.data as { filters?: FilterMeta }).filters)
+      const meta = metaSource
+        ? (metaSource.data as { filters: FilterMeta }).filters
+        : null
+      if (meta) {
+        setFilterMeta({
+          lotids: meta.lotids || [],
+          prdcts: meta.prdcts || [],
+          prgnms: meta.prgnms || [],
+        })
+      }
+      setFlows(next)
       setApplied(nextFilters)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -158,25 +158,24 @@ export function ProbeDashboard() {
             cfg.csvPath?.includes(`/${f.value}`),
         )
         setPathInput(match?.value || files[0]?.value || DEFAULT_PATH)
-        await loadSummary(EMPTY_FILTERS)
+        await loadSummaries(EMPTY_FILTERS)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
         setLoading(false)
       }
     })()
-  }, [loadSummary])
+  }, [loadSummaries])
 
-  // Auto-apply when filters change (after first load)
   useEffect(() => {
     if (skipAutoApply.current) {
       skipAutoApply.current = false
       return
     }
     const t = setTimeout(() => {
-      loadSummary(filters)
+      loadSummaries(filters)
     }, 150)
     return () => clearTimeout(t)
-  }, [filters, loadSummary])
+  }, [filters, loadSummaries])
 
   async function onLoadPath() {
     setBusy(true)
@@ -190,7 +189,7 @@ export function ProbeDashboard() {
       const cfg = await request<Config>('/api/probe/config')
       setConfig(cfg)
       setFilters(EMPTY_FILTERS)
-      await loadSummary(EMPTY_FILTERS)
+      await loadSummaries(EMPTY_FILTERS)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -205,22 +204,13 @@ export function ProbeDashboard() {
       await request('/api/probe/reload', { method: 'POST' })
       const cfg = await request<Config>('/api/probe/config')
       setConfig(cfg)
-      await loadSummary(filters)
+      await loadSummaries(filters)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setBusy(false)
     }
   }
-
-  const lcodeOptions =
-    summary?.filters.lcodeOptions ||
-    (summary?.filters.lcodes || []).map((v) => ({ value: v, label: v }))
-
-  const weeklyCols = (summary?.weekly || []).map((r) => ({
-    ...r,
-    kind: 'week' as const,
-  }))
 
   return (
     <div className="app-shell">
@@ -230,8 +220,8 @@ export function ProbeDashboard() {
             Wafer<span>Probe</span>
           </div>
           <p className="brand-sub">
-            Flow SDS → SDT → SDE · Pareto hides bin 93 on all · Yield: SDS counts all dies;
-            SDT/SDE exclude bin 93 · Avg TT on good bin only
+            v0.1 · SDS, SDT, and SDE on one page · Yield: SDS = all dies; SDT/SDE exclude
+            bin 93 · Avg TT on good bin only
           </p>
         </div>
         <AppNav />
@@ -277,22 +267,19 @@ export function ProbeDashboard() {
 
       {error && <div className="panel state error">{error}</div>}
 
-      {(applied.lcode ||
-        applied.lotids.length > 0 ||
+      {(applied.lotids.length > 0 ||
         applied.prdct ||
         applied.prgnm ||
         applied.dateFrom ||
         applied.dateTo) && (
         <div className="probe-active-filters">
           <strong>Active filter:</strong>
-          {applied.lcode && (
-            <span className="probe-filter-chip">
-              LCode {lcodeLabel(applied.lcode)}
-            </span>
-          )}
           {applied.lotids.length > 0 && (
             <span className="probe-filter-chip">
-              Lots {applied.lotids.length === 1 ? applied.lotids[0] : `${applied.lotids.length} selected`}
+              Lots{' '}
+              {applied.lotids.length === 1
+                ? applied.lotids[0]
+                : `${applied.lotids.length} selected`}
             </span>
           )}
           {applied.prdct && (
@@ -313,7 +300,7 @@ export function ProbeDashboard() {
         className="probe-filters"
         onSubmit={(e) => {
           e.preventDefault()
-          loadSummary(filters)
+          loadSummaries(filters)
         }}
       >
         <label className="probe-field">
@@ -335,7 +322,7 @@ export function ProbeDashboard() {
         <label className="probe-field">
           <span>Lot</span>
           <LotMultiSelect
-            options={summary?.filters.lotids || []}
+            options={filterMeta.lotids}
             selected={filters.lotids}
             onChange={(lotids) => setFilters((f) => ({ ...f, lotids }))}
           />
@@ -347,7 +334,7 @@ export function ProbeDashboard() {
             onChange={(e) => setFilters((f) => ({ ...f, prdct: e.target.value }))}
           >
             <option value="">All</option>
-            {(summary?.filters.prdcts || []).map((v) => (
+            {filterMeta.prdcts.map((v) => (
               <option key={v} value={v}>
                 {v}
               </option>
@@ -361,23 +348,9 @@ export function ProbeDashboard() {
             onChange={(e) => setFilters((f) => ({ ...f, prgnm: e.target.value }))}
           >
             <option value="">All</option>
-            {(summary?.filters.prgnms || []).map((v) => (
+            {filterMeta.prgnms.map((v) => (
               <option key={v} value={v}>
                 {v}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="probe-field">
-          <span>LCode</span>
-          <select
-            value={filters.lcode}
-            onChange={(e) => setFilters((f) => ({ ...f, lcode: e.target.value }))}
-          >
-            <option value="">All</option>
-            {lcodeOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
               </option>
             ))}
           </select>
@@ -390,41 +363,14 @@ export function ProbeDashboard() {
           className="btn-secondary"
           onClick={() => {
             setFilters(EMPTY_FILTERS)
-            loadSummary(EMPTY_FILTERS)
+            loadSummaries(EMPTY_FILTERS)
           }}
         >
           Clear
         </button>
       </form>
 
-      <section className="probe-kpis">
-        <div className="panel panel-pad probe-kpi">
-          <div className="kpi-label">Lots</div>
-          <div className="kpi-value">{fmt(summary?.kpis.lots)}</div>
-        </div>
-        <div className="panel panel-pad probe-kpi">
-          <div className="kpi-label">Wafers</div>
-          <div className="kpi-value">{fmt(summary?.kpis.wafers)}</div>
-        </div>
-        <div className="panel panel-pad probe-kpi">
-          <div className="kpi-label">Yield</div>
-          <div className="kpi-value">{fmt(summary?.kpis.yieldPct, 1)}%</div>
-        </div>
-        <div className="panel panel-pad probe-kpi">
-          <div className="kpi-label">Avg TT (good)</div>
-          <div className="kpi-value">{fmt(summary?.kpis.avgTtime, 1)}</div>
-        </div>
-        <div className="panel panel-pad probe-kpi">
-          <div className="kpi-label">Date span</div>
-          <div className="kpi-value kpi-value-sm">
-            {summary?.kpis.dateMin && summary?.kpis.dateMax
-              ? `${summary.kpis.dateMin.slice(5)} → ${summary.kpis.dateMax.slice(5)}`
-              : '—'}
-          </div>
-        </div>
-      </section>
-
-      <div className="probe-chip-row" style={{ marginBottom: 12 }}>
+      <div className="probe-chip-row" style={{ marginBottom: 16 }}>
         <button
           type="button"
           className={`probe-chip ${periodView === 'monthly' ? 'active' : ''}`}
@@ -441,41 +387,15 @@ export function ProbeDashboard() {
         </button>
       </div>
 
-      <section style={{ marginBottom: 16 }}>
-        {periodView === 'monthly' ? (
-          <ActualSummaryTable
-            title="Actual — Monthly"
-            columns={summary?.actualColumns || []}
-            showTp
-          />
-        ) : (
-          <ActualSummaryTable title="Actual — Weekly" columns={weeklyCols} />
-        )}
-      </section>
-
-      <section className="probe-grid-2">
-        <YieldTrendChart
-          data={summary?.weekly || []}
-          title="Yield trend — weekly"
+      {FLOWS.map((flow) => (
+        <ProbeFlowSection
+          key={flow.code}
+          label={flow.label}
+          blurb={flow.blurb}
+          summary={flows[flow.code] || null}
+          periodView={periodView}
         />
-        <YieldTrendChart
-          data={summary?.monthly || []}
-          title="Yield trend — monthly"
-        />
-      </section>
-
-      <section className="probe-grid-2" style={{ marginTop: 14 }}>
-        <BinParetoChart
-          title="Bin share by week"
-          periods={summary?.binParetoWeekly || []}
-          overall={summary?.binsOverall || []}
-        />
-        <BinParetoChart
-          title="Bin share by month"
-          periods={summary?.binParetoMonthly || []}
-          overall={summary?.binsOverall || []}
-        />
-      </section>
+      ))}
     </div>
   )
 }

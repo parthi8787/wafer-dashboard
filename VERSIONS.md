@@ -3,6 +3,7 @@
 | Version | Git tag | Notes |
 |---------|---------|--------|
 | **0.0** | `v0.0` | Working baseline (build + start bat, Chrome localhost, probe + bin analysis). **Frozen — do not move or delete this tag.** |
+| **0.1** | _(on main; tag when you freeze)_ | SDS + SDT + SDE on one probe page; LCode dropdown removed. |
 
 ## Run Version 0.0
 

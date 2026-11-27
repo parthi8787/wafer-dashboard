@@ -11,13 +11,12 @@ if errorlevel 1 goto :fail
 
 echo.
 echo Starting server on http://localhost:5173
-echo Opening Chrome...
+echo Chrome will open in a few seconds...
+echo Press Ctrl+C to stop the server.
 echo.
 
-start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" "http://localhost:5173"
-if errorlevel 1 (
-  start "" chrome "http://localhost:5173"
-)
+REM Open Chrome after the server has a moment to boot
+start "" cmd /c "timeout /t 4 /nobreak >nul & start \"\" \"C:\Program Files\Google\Chrome\Application\chrome.exe\" http://localhost:5173 || start \"\" chrome http://localhost:5173"
 
 call npm start
 goto :eof
